@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/mapprotocol/filter/internal/pkg/butter"
 	"github.com/mapprotocol/filter/internal/pkg/dao"
+	"github.com/mapprotocol/filter/internal/pkg/memo"
 	"github.com/mapprotocol/filter/internal/pkg/stream"
 	"github.com/mapprotocol/filter/pkg/utils"
 
@@ -149,7 +150,7 @@ func (c *Chain) mosHandler(startBlock, endBlock *big.Int) error {
 			idx := -1
 			eventData := &MessageOutEvent{}
 			for _, m := range t.Tx.Memos {
-				idx, eventData, err = c.match(m.Memo.MemoData, t.Tx.Hash)
+				idx, eventData, err = c.match(m.Memo.MemoData, t.Tx.Hash, t.Tx.LedgerIndex)
 				if err != nil {
 					return err
 				}
@@ -247,7 +248,7 @@ type MessageOutEvent struct {
 	InAmountNoDecimal string `json:"in_amount_no_decimal"` // amount
 }
 
-func (c *Chain) match(memoData, hash string) (int, *MessageOutEvent, error) {
+func (c *Chain) match(memoData, hash string, blockNumber int) (int, *MessageOutEvent, error) {
 	ret := -1
 	for idx, v := range c.events {
 		if strings.HasPrefix(memoData, strings.ToUpper(strings.TrimPrefix(v.Topic, "0x"))) {
@@ -262,11 +263,11 @@ func (c *Chain) match(memoData, hash string) (int, *MessageOutEvent, error) {
 	var event *MessageOutEvent
 	switch c.events[ret].Topic {
 	case constant.TopicMessageOut:
-		// event, err = c.handlerMessageOut(ret, memoData, hash)
-		// if err != nil {
-		// 	return -1, nil, err
-		// }
-		// return ret, event, nil
+		event, err = c.handlerMessageOut(ret, blockNumber, memoData, hash)
+		if err != nil {
+			return -1, nil, err
+		}
+		return ret, event, nil
 	case constant.TopicMessageIn:
 		event, err = c.handlerMessageIn(ret, memoData, hash)
 		if err != nil {
@@ -277,36 +278,67 @@ func (c *Chain) match(memoData, hash string) (int, *MessageOutEvent, error) {
 	return -1, nil, nil
 }
 
-func (c *Chain) handlerMessageOut(idx int, memoData, hash string) (*MessageOutEvent, error) {
+func (c *Chain) handlerMessageOut(idx, blockNumber int, memoData, hash string) (*MessageOutEvent, error) {
 	rmPrefix := strings.TrimPrefix(memoData,
 		strings.ToUpper(strings.TrimPrefix(c.events[idx].Topic, "0x")))
 	hexBytes := common.Hex2Bytes(rmPrefix)
-	event := MessageOutEvent{}
-	// json encode
-	err := json.Unmarshal(hexBytes, &event)
+
+	crossOutMemo := &memo.CrossOutMemo{}
+	err := crossOutMemo.FromString(string(hexBytes))
 	if err != nil {
-		return nil, errors.Wrap(err, "json unmarshal error")
+		return nil, errors.Wrap(err, "failed to parse CrossOutMemo")
 	}
 
+	srcToken := "0x585250"
 	resp, err := butter.RequestBridgeData(c.cfg.Butter, hash,
 		&stream.BridgeDataRequest{
-			Entrance:        event.Entrance,
+			Entrance:        crossOutMemo.Affiliate,
 			Affiliate:       nil,
 			FromChainID:     c.cfg.Id,
-			ToChainID:       event.DstChain,
-			Amount:          event.InAmountNoDecimal,
-			TokenInAddress:  event.SrcToken,
-			TokenOutAddress: event.DstToken,
-			MinAmountOut:    event.MinOutAmount,
-			Receiver:        event.Receiver,
-			Caller:          event.From,
+			ToChainID:       crossOutMemo.ToChain,
+			Amount:          crossOutMemo.Amount,
+			TokenInAddress:  srcToken,
+			TokenOutAddress: crossOutMemo.DstToken,
+			MinAmountOut:    crossOutMemo.MinOutAmount,
+			Receiver:        crossOutMemo.Receiver,
+			Caller:          crossOutMemo.Sender,
 		})
 	if err != nil {
 		return nil, errors.Wrap(err, "butter request error")
 	}
-	event.Relay = resp.Relay
-	event.SwapData = resp.Data
-	event.To = resp.Receiver
+
+	amountBigFloat, ok := new(big.Float).SetString(crossOutMemo.Amount)
+	if !ok {
+		return nil, errors.New("invalid amount string" + crossOutMemo.Amount)
+	}
+	exp := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
+	amount := new(big.Float).Mul(amountBigFloat, new(big.Float).SetInt(exp))
+	amountBigInt, _ := amount.Int(nil)
+
+	event := MessageOutEvent{
+		Topic:             c.events[idx].Topic,
+		SrcToken:          srcToken,
+		MOS:               "0x787270",
+		To:                resp.Receiver,
+		Relay:             resp.Relay,
+		SwapData:          resp.Data,
+		BlockNumber:       int64(blockNumber),
+		TxHash:            hash,
+		OrderID:           crossOutMemo.OrderId,
+		From:              crossOutMemo.Sender,
+		SrcChain:          c.cfg.Id,
+		MessageType:       3,
+		GasLimit:          "0",
+		Entrance:          crossOutMemo.Affiliate,
+		MinOutAmount:      crossOutMemo.MinOutAmount,
+		Sender:            crossOutMemo.Sender,
+		InAmount:          amountBigInt.String(),
+		InTxHash:          hash,
+		DstChain:          crossOutMemo.ToChain,
+		DstToken:          crossOutMemo.DstToken,
+		Receiver:          crossOutMemo.Receiver,
+		InAmountNoDecimal: crossOutMemo.Amount,
+	}
 
 	return &event, nil
 }
