@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/go-redis/redis/v8"
 	"github.com/mapprotocol/filter/internal/pkg/constant"
 	"github.com/mapprotocol/filter/internal/pkg/dao"
-	"strconv"
 )
 
 var (

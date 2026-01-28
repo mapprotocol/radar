@@ -186,14 +186,6 @@ func (c *Chain) mosHandler(latestBlock, endBlock *big.Int) error {
 	if c.isBackUp {
 		return nil
 	}
-	// save current progress
-	for _, s := range c.storages {
-		err = s.ScanBlockNumber(c.cfg.Id, endBlock.Uint64())
-		if err != nil {
-			c.log.Error("Insert scan block number failed", "blockNumber", endBlock.Uint64(), "err", err)
-		}
-
-	}
 
 	return nil
 }

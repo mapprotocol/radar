@@ -1,11 +1,12 @@
 package storage
 
 import (
-	"github.com/mapprotocol/filter/pkg/utils"
 	glog "log"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/mapprotocol/filter/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/log"
 	_ "github.com/go-sql-driver/mysql"
@@ -37,7 +38,7 @@ func (m *Mysql) init() error {
 		Logger: logger.New(
 			glog.New(os.Stdout, "\r\n", glog.LstdFlags),
 			logger.Config{
-				LogLevel: logger.Warn,
+				LogLevel: logger.Info,
 				Colorful: false,
 			},
 		),
@@ -90,35 +91,6 @@ func (m *Mysql) LatestBlockNumber(chainId string, latest uint64) error {
 	}
 	m.chainMapping.Set(key, blk.Id)
 	err = m.db.Model(&dao.Block{}).Where("id = ?", id).Update("number", strconv.FormatUint(latest, 10)).Error
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *Mysql) ScanBlockNumber(chainId string, latest uint64) error {
-	key := "scan_" + chainId
-	id, ok := m.chainMapping.Get(key)
-	if ok {
-		err := m.db.Model(&dao.ScanBlock{}).Where("id = ?", id).Update("number", strconv.FormatUint(latest, 10)).Error
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	blk := &dao.ScanBlock{}
-	err := m.db.Model(&dao.ScanBlock{}).Where("chain_id = ?", chainId).First(blk).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			err = m.db.Create(&dao.ScanBlock{
-				ChainId: chainId,
-				Number:  strconv.FormatUint(latest, 10),
-			}).Error
-		}
-		return err
-	}
-	m.chainMapping.Set(key, blk.Id)
-	err = m.db.Model(&dao.ScanBlock{}).Where("id = ?", id).Update("number", strconv.FormatUint(latest, 10)).Error
 	if err != nil {
 		return err
 	}

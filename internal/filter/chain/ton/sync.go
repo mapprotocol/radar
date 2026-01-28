@@ -186,7 +186,7 @@ func (c *Chain) getMatch() error {
 				continue
 			}
 			c.events = append(c.events, tmp)
-			c.log.Info("Add new event", "project", e.ProjectId, "topic", e.Topic)
+			c.log.Info("Add new event", "project", e.ProjectId, "topic", e.Topic, "event_id", tmp.Id)
 		}
 	}
 	return nil

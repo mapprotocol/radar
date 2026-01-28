@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+
 	"github.com/mapprotocol/filter/internal/api/store"
 	"github.com/mapprotocol/filter/internal/pkg/dao"
 	"gorm.io/gorm"
@@ -73,12 +74,12 @@ func (m *Mos) List(ctx context.Context, c *store.MosCond) ([]*dao.Mos, int64, er
 	db = db.Where("event_id IN ?", c.EventIds)
 	//}
 	total := int64(0)
-	err := db.Model(&dao.Mos{}).Count(&total).Error
-	if err != nil {
-		return nil, 0, err
-	}
+	// err := db.Model(&dao.Mos{}).Count(&total).Error
+	// if err != nil {
+	// 	return nil, 0, err
+	// }
 	ret := make([]*dao.Mos, 0)
-	err = db.Limit(c.Limit).Order(clause.OrderByColumn{
+	err := db.Limit(c.Limit).Order(clause.OrderByColumn{
 		Column: clause.Column{Table: clause.CurrentTable, Name: clause.PrimaryKey},
 	}).Find(&ret).Error
 	return ret, total, err
@@ -98,11 +99,11 @@ func (m *Mos) BlockList(ctx context.Context, c *store.MosCond) ([]*dao.Mos, int6
 	}
 
 	total := int64(0)
-	err := db.Model(&dao.Mos{}).Count(&total).Error
-	if err != nil {
-		return nil, 0, err
-	}
+	// err := db.Model(&dao.Mos{}).Count(&total).Error
+	// if err != nil {
+	// 	return nil, 0, err
+	// }
 	ret := make([]*dao.Mos, 0)
-	err = db.Limit(c.Limit).Find(&ret).Error
+	err := db.Limit(c.Limit).Find(&ret).Error
 	return ret, total, err
 }
