@@ -38,7 +38,7 @@ func (m *Mysql) init() error {
 		Logger: logger.New(
 			glog.New(os.Stdout, "\r\n", glog.LstdFlags),
 			logger.Config{
-				LogLevel: logger.Info,
+				LogLevel: logger.Warn,
 				Colorful: false,
 			},
 		),

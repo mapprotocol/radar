@@ -1,11 +1,12 @@
 package mysql
 
 import (
+	"log"
+	"os"
+
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"log"
-	"os"
 )
 
 func Init(dsn string) (*gorm.DB, error) {
@@ -14,7 +15,7 @@ func Init(dsn string) (*gorm.DB, error) {
 		Logger: logger.New(
 			log.New(os.Stdout, "\r\n", log.LstdFlags),
 			logger.Config{
-				LogLevel: logger.Info,
+				LogLevel: logger.Warn,
 				Colorful: false,
 			},
 		),
