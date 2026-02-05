@@ -3,16 +3,12 @@ package ton
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"log"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/mapprotocol/filter/internal/pkg/constant"
-	"github.com/mapprotocol/filter/internal/pkg/dao"
 	"github.com/pkg/errors"
 
 	"github.com/mapprotocol/filter/pkg/blockstore"
@@ -117,27 +113,27 @@ func (c *Chain) sync() error {
 
 							data, err := msg.AsExternalOut().Payload().MarshalJSON()
 							if err != nil {
-								c.log.Error("TxHash marshal failed", "txHash", txHash, "err", err)
+								c.log.Error("TxHash marshal failed", "txHash", txHash, "data", data, "cId", cid, "err", err)
 								continue
 							}
-							for _, s := range c.storages {
-								err = s.Mos(0, &dao.Mos{
-									ChainId:         cid,
-									ProjectId:       7,
-									EventId:         c.events[idx].Id,
-									TxHash:          txHash,
-									ContractAddress: treasuryAddress.String(),
-									Topic:           c.events[idx].Topic,
-									LogData:         common.Bytes2Hex(data),
-									BlockNumber:     t.LT,
-									TxTimestamp:     uint64(time.Now().Unix()),
-								})
-								if err != nil {
-									c.log.Error("Insert failed", "hash", txHash, "err", err)
-									continue
-								}
-								c.log.Info("Insert success", "hash", txHash)
-							}
+							// for _, s := range c.storages {
+							// 	err = s.Mos(0, &dao.Mos{
+							// 		ChainId:         cid,
+							// 		ProjectId:       7,
+							// 		EventId:         c.events[idx].Id,
+							// 		TxHash:          txHash,
+							// 		ContractAddress: treasuryAddress.String(),
+							// 		Topic:           c.events[idx].Topic,
+							// 		LogData:         common.Bytes2Hex(data),
+							// 		BlockNumber:     t.LT,
+							// 		TxTimestamp:     uint64(time.Now().Unix()),
+							// 	})
+							// 	if err != nil {
+							// 		c.log.Error("Insert failed", "hash", txHash, "err", err)
+							// 		continue
+							// 	}
+							// 	c.log.Info("Insert success", "hash", txHash)
+							// }
 						}
 					}
 
@@ -171,23 +167,23 @@ func (c *Chain) match(target string) int {
 }
 
 func (c *Chain) getMatch() error {
-	for _, s := range c.storages {
-		if s.Type() != constant.Mysql {
-			continue
-		}
-		events, err := s.GetEvent(c.eventId)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("%s get events failed", s.Type()))
-		}
-		for _, e := range events {
-			tmp := e
-			c.eventId = tmp.Id
-			if tmp.ChainId != "" && tmp.ChainId != c.cfg.Id {
-				continue
-			}
-			c.events = append(c.events, tmp)
-			c.log.Info("Add new event", "project", e.ProjectId, "topic", e.Topic, "event_id", tmp.Id)
-		}
-	}
+	// for _, s := range c.storages {
+	// 	if s.Type() != constant.Mysql {
+	// 		continue
+	// 	}
+	// 	events, err := s.GetEvent(c.eventId)
+	// 	if err != nil {
+	// 		return errors.Wrap(err, fmt.Sprintf("%s get events failed", s.Type()))
+	// 	}
+	// 	for _, e := range events {
+	// 		tmp := e
+	// 		c.eventId = tmp.Id
+	// 		if tmp.ChainId != "" && tmp.ChainId != c.cfg.Id {
+	// 			continue
+	// 		}
+	// 		c.events = append(c.events, tmp)
+	// 		c.log.Info("Add new event", "project", e.ProjectId, "topic", e.Topic, "event_id", tmp.Id)
+	// 	}
+	// }
 	return nil
 }

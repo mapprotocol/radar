@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 	"time"
 
@@ -178,34 +177,34 @@ func (c *Chain) mosHandler(startBlock, endBlock *big.Int) error {
 }
 
 func (c *Chain) insert(tx *stream.LedgerTx, event *dao.Event, tIdx int, eventData *MessageOutEvent) error {
-	var (
-		topic  string
-		cid, _ = strconv.ParseInt(c.cfg.Id, 10, 64)
-	)
-	topic = strings.Join([]string{event.Topic, eventData.OrderID}, ",")
-	eventBytes, _ := json.Marshal(eventData)
+	// var (
+	// 	topic  string
+	// 	cid, _ = strconv.ParseInt(c.cfg.Id, 10, 64)
+	// )
+	// topic = strings.Join([]string{event.Topic, eventData.OrderID}, ",")
+	// eventBytes, _ := json.Marshal(eventData)
 
-	for _, s := range c.storages {
-		err := s.Mos(22776, &dao.Mos{
-			ChainId:         cid,
-			ProjectId:       event.ProjectId,
-			EventId:         event.Id,
-			TxHash:          tx.Tx.Hash,
-			ContractAddress: tx.Tx.Account,
-			Topic:           topic,
-			BlockNumber:     uint64(tx.Tx.LedgerIndex),
-			LogIndex:        uint(tIdx),
-			TxIndex:         1,
-			BlockHash:       "",
-			LogData:         string(eventBytes),
-			TxTimestamp:     uint64(time.Now().Unix()),
-		})
-		if err != nil {
-			c.log.Error("Insert failed", "hash", tx.Tx.Hash, "logIndex", tIdx, "err", err)
-			continue
-		}
-		c.log.Info("Insert success", "blockNumber", tx.Tx.LedgerIndex, "hash", tx.Tx.Hash, "logIndex", tIdx)
-	}
+	// for _, s := range c.storages {
+	// 	err := s.Mos(22776, &dao.Mos{
+	// 		ChainId:         cid,
+	// 		ProjectId:       event.ProjectId,
+	// 		EventId:         event.Id,
+	// 		TxHash:          tx.Tx.Hash,
+	// 		ContractAddress: tx.Tx.Account,
+	// 		Topic:           topic,
+	// 		BlockNumber:     uint64(tx.Tx.LedgerIndex),
+	// 		LogIndex:        uint(tIdx),
+	// 		TxIndex:         1,
+	// 		BlockHash:       "",
+	// 		LogData:         string(eventBytes),
+	// 		TxTimestamp:     uint64(time.Now().Unix()),
+	// 	})
+	// 	if err != nil {
+	// 		c.log.Error("Insert failed", "hash", tx.Tx.Hash, "logIndex", tIdx, "err", err)
+	// 		continue
+	// 	}
+	// 	c.log.Info("Insert success", "blockNumber", tx.Tx.LedgerIndex, "hash", tx.Tx.Hash, "logIndex", tIdx)
+	// }
 	return nil
 }
 

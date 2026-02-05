@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	rds "github.com/go-redis/redis/v8"
-	"github.com/mapprotocol/filter/internal/pkg/constant"
-	"github.com/mapprotocol/filter/internal/pkg/dao"
 	"strconv"
 	"strings"
 	"time"
+
+	rds "github.com/go-redis/redis/v8"
+	"github.com/mapprotocol/filter/internal/pkg/constant"
 )
 
 var (
@@ -67,27 +67,27 @@ func (c *Chain) sync() error {
 
 					txHash, err := c.rdb.Get(context.Background(), outcome.ExecutionOutcome.ID.String()).Result()
 					if err != nil {
-						c.log.Error("Get TxHah Failed", "receiptId", outcome.ExecutionOutcome.ID.String())
+						c.log.Error("Get TxHah Failed", "receiptId", outcome.ExecutionOutcome.ID.String(), "txHash", txHash, "cid", cid, "err", err)
 						continue
 					}
-					sData, _ := json.Marshal(outcome)
-					for _, s := range c.storages {
-						err = s.Mos(0, &dao.Mos{
-							ChainId:         cid,
-							TxHash:          txHash,
-							ContractAddress: outcome.ExecutionOutcome.Outcome.ExecutorID,
-							Topic:           "",
-							BlockNumber:     data.Block.Header.Height,
-							LogIndex:        uint(idx),
-							LogData:         string(sData),
-							TxTimestamp:     data.Block.Header.Timestamp,
-						})
-						if err != nil {
-							c.log.Error("insert failed", "blockNumber", data.Block.Header.Height, "hash", txHash, "logIndex", idx, "err", err)
-							continue
-						}
-						c.log.Info("insert success", "blockNumber", data.Block.Header.Height, "hash", txHash, "logIndex", idx)
-					}
+					// sData, _ := json.Marshal(outcome)
+					// for _, s := range c.storages {
+					// 	err = s.Mos(0, &dao.Mos{
+					// 		ChainId:         cid,
+					// 		TxHash:          txHash,
+					// 		ContractAddress: outcome.ExecutionOutcome.Outcome.ExecutorID,
+					// 		Topic:           "",
+					// 		BlockNumber:     data.Block.Header.Height,
+					// 		LogIndex:        uint(idx),
+					// 		LogData:         string(sData),
+					// 		TxTimestamp:     data.Block.Header.Timestamp,
+					// 	})
+					// 	if err != nil {
+					// 		c.log.Error("insert failed", "blockNumber", data.Block.Header.Height, "hash", txHash, "logIndex", idx, "err", err)
+					// 		continue
+					// 	}
+					// 	c.log.Info("insert success", "blockNumber", data.Block.Header.Height, "hash", txHash, "logIndex", idx)
+					// }
 				}
 			}
 		}

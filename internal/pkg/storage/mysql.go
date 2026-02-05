@@ -55,12 +55,11 @@ func (m *Mysql) Type() string {
 	return constant.Mysql
 }
 
-func (m *Mysql) Mos(toChainId uint64, event *dao.Mos) error {
-	err := m.db.Create(event).Error
+func (m *Mysql) Mos(toChainId uint64, event []*dao.Mos) error {
+	err := m.db.Create(&event).Error
 	if err != nil {
 		if strings.Index(err.Error(), "Duplicate") != -1 {
-			log.Info("log is inserted", "blockNumber", event.BlockNumber, "hash", event.TxHash,
-				"logIndex", event.LogIndex, "eventId", event.EventId)
+			log.Info("log is inserted", "event", event)
 			return nil
 		}
 		return err

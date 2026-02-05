@@ -143,18 +143,23 @@ func (c *Chain) rangeScan(event *dao.Event, end int64) {
 		if len(logs) == 0 {
 			continue
 		}
-		for _, l := range logs {
-			ele := l
-			err = c.insert(&ele, event)
-			if err != nil {
-				c.log.Error("RangeScan insert failed", "hash", l.TxHash, "logIndex", l.Index, "err", err)
-				continue
-			}
-		}
+		// for _, l := range logs {
+		// ele := l
+		// err = c.insert(&ele, event)
+		// if err != nil {
+		// 	c.log.Error("RangeScan insert failed", "hash", l.TxHash, "logIndex", l.Index, "err", err)
+		// 	continue
+		// }
+		// }
 		time.Sleep(time.Millisecond * 3)
 	}
 	c.log.Info("Range scan finish", "appoint", event.BlockNumber, "current", end)
 	_ = c.bs.DelFile(filename)
+}
+
+type eleStruct struct {
+	ll    types.Log
+	event *dao.Event
 }
 
 func (c *Chain) mosHandler(latestBlock, endBlock *big.Int) error {
@@ -167,6 +172,7 @@ func (c *Chain) mosHandler(latestBlock, endBlock *big.Int) error {
 		return nil
 	}
 
+	inserts := make([]*eleStruct, 0)
 	for _, l := range logs {
 		ele := l
 		idxs := c.match(&ele)
@@ -176,11 +182,19 @@ func (c *Chain) mosHandler(latestBlock, endBlock *big.Int) error {
 		}
 		for _, idx := range idxs {
 			event := c.events[idx]
-			err = c.insert(&ele, event)
-			if err != nil {
-				c.log.Error("Insert failed", "hash", l.TxHash, "logIndex", l.Index, "err", err)
-				continue
-			}
+			tmpEvent := event
+			inserts = append(inserts, &eleStruct{
+				ll:    ele,
+				event: tmpEvent,
+			})
+
+		}
+	}
+	if len(inserts) > 0 {
+		err = c.insert(inserts)
+		if err != nil {
+			c.log.Error("Insert failed", "insert", inserts, "err", err)
+			return err
 		}
 	}
 	if c.isBackUp {
@@ -190,51 +204,57 @@ func (c *Chain) mosHandler(latestBlock, endBlock *big.Int) error {
 	return nil
 }
 
-func (c *Chain) insert(l *types.Log, event *dao.Event) error {
+func (c *Chain) insert(inserts []*eleStruct) error {
 	var (
 		topic     string
 		toChainId uint64
 		cid, _    = strconv.ParseInt(c.cfg.Id, 10, 64)
 	)
-	header, err := c.conn.Client().HeaderByNumber(context.Background(), big.NewInt(0).SetUint64(l.BlockNumber))
+	header, err := c.conn.Client().HeaderByNumber(context.Background(),
+		big.NewInt(0).SetUint64(inserts[0].ll.BlockNumber))
 	if err != nil {
-		c.log.Error("Get header by block number failed", "blockNumber", l.BlockNumber, "err", err)
+		c.log.Error("Get header by block number failed", "blockNumber", inserts[0].ll.BlockNumber, "err", err)
 		header = &types.Header{
 			Time: uint64(time.Now().Unix() - c.cfg.BlockConfirmations.Int64()),
 		}
 	}
-	for idx, t := range l.Topics {
-		topic += t.Hex()
-		if idx != len(l.Topics)-1 {
-			topic += ","
-		}
-		if idx == len(l.Topics)-1 {
-			tmp, ok := big.NewInt(0).SetString(strings.TrimPrefix(t.Hex(), "0x"), 16)
-			if ok {
-				toChainId = tmp.Uint64()
+	moss := make([]*dao.Mos, 0, len(inserts))
+	for _, ele := range inserts {
+		for idx, t := range ele.ll.Topics {
+			topic += t.Hex()
+			if idx != len(ele.ll.Topics)-1 {
+				topic += ","
+			}
+			if idx == len(ele.ll.Topics)-1 {
+				tmp, ok := big.NewInt(0).SetString(strings.TrimPrefix(t.Hex(), "0x"), 16)
+				if ok {
+					toChainId = tmp.Uint64()
+				}
 			}
 		}
-	}
-	for _, s := range c.storages {
-		err = s.Mos(toChainId, &dao.Mos{
+		moss = append(moss, &dao.Mos{
 			ChainId:         cid,
-			ProjectId:       event.ProjectId,
-			EventId:         event.Id,
-			TxHash:          l.TxHash.String(),
-			ContractAddress: l.Address.String(),
+			ProjectId:       ele.event.ProjectId,
+			EventId:         ele.event.Id,
+			TxHash:          ele.ll.TxHash.String(),
+			ContractAddress: ele.ll.Address.String(),
 			Topic:           topic,
-			BlockNumber:     l.BlockNumber,
-			LogIndex:        l.Index,
-			TxIndex:         l.TxIndex,
-			BlockHash:       l.BlockHash.Hex(),
-			LogData:         common.Bytes2Hex(l.Data),
+			BlockNumber:     ele.ll.BlockNumber,
+			LogIndex:        ele.ll.Index,
+			TxIndex:         ele.ll.TxIndex,
+			BlockHash:       ele.ll.BlockHash.Hex(),
+			LogData:         common.Bytes2Hex(ele.ll.Data),
 			TxTimestamp:     header.Time,
 		})
+	}
+
+	for _, s := range c.storages {
+		err = s.Mos(toChainId, moss)
 		if err != nil {
-			c.log.Error("Insert failed", "hash", l.TxHash, "logIndex", l.Index, "err", err)
+			c.log.Error("Insert failed", "mos", moss, "err", err)
 			continue
 		}
-		c.log.Info("Insert success", "blockNumber", l.BlockNumber, "hash", l.TxHash, "logIndex", l.Index, "txIndex", l.TxIndex, "eventId", event.Id)
+		c.log.Info("Insert success", "mos", moss)
 	}
 	return nil
 }
