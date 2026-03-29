@@ -166,6 +166,10 @@ func (c *Chain) mosHandler(latestBlock, endBlock *big.Int) error {
 	query := c.BuildQuery(latestBlock, endBlock)
 	logs, err := c.conn.Client().FilterLogs(context.Background(), query)
 	if err != nil {
+		if c.isIgnorableError(err) {
+			c.log.Warn("filter logs ignore err", "start", latestBlock, "end", endBlock, "err", err)
+			return nil
+		}
 		return fmt.Errorf("unable to Filter Logs: %w", err)
 	}
 	if len(logs) == 0 {
@@ -279,4 +283,14 @@ func (c *Chain) match(l *types.Log) []int {
 		ret = append(ret, idx)
 	}
 	return ret
+}
+
+func (c *Chain) isIgnorableError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := err.Error()
+
+	return strings.Contains(msg, "state-sync transaction")
 }
