@@ -1,6 +1,8 @@
 package ethereum
 
 import (
+	"math/big"
+
 	ethkeystore "github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/mapprotocol/filter/internal/filter/config"
@@ -8,7 +10,6 @@ import (
 	"github.com/mapprotocol/filter/internal/pkg/storage"
 	"github.com/mapprotocol/filter/pkg/blockstore"
 	"github.com/pkg/errors"
-	"math/big"
 )
 
 type Chain struct {

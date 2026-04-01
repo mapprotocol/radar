@@ -210,7 +210,6 @@ func (c *Chain) mosHandler(latestBlock, endBlock *big.Int) error {
 
 func (c *Chain) insert(inserts []*eleStruct) error {
 	var (
-		topic     string
 		toChainId uint64
 		cid, _    = strconv.ParseInt(c.cfg.Id, 10, 64)
 	)
@@ -224,6 +223,7 @@ func (c *Chain) insert(inserts []*eleStruct) error {
 	}
 	moss := make([]*dao.Mos, 0, len(inserts))
 	for _, ele := range inserts {
+		topic := ""
 		for idx, t := range ele.ll.Topics {
 			topic += t.Hex()
 			if idx != len(ele.ll.Topics)-1 {
