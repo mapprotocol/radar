@@ -35,12 +35,16 @@ func (c *Chain) sync() error {
 		case <-c.stop:
 			return errors.New("polling terminated")
 		default:
+			rpcStart := time.Now()
 			latestBlock, err := c.conn.LatestBlock()
+			c.state.ObserveRPC("LatestBlock", time.Since(rpcStart).Seconds())
 			if err != nil {
+				c.state.RecordError("rpc_latest_block", err.Error())
 				c.log.Error("Unable to get latest block", "block", currentBlock, "err", err)
 				time.Sleep(constant.RetryInterval)
 				continue
 			}
+			c.state.SetLatestBlock(int64(latestBlock))
 
 			if latestBlock != savedBN {
 				savedBN = latestBlock
@@ -91,6 +95,12 @@ func (c *Chain) sync() error {
 
 			c.currentProgress = endBlock.Int64()
 			c.latest = int64(latestBlock)
+			processed := endBlock.Int64() - currentBlock.Int64() + 1
+			if processed < 1 {
+				processed = 1
+			}
+			c.state.SetCurrentBlock(endBlock.Int64())
+			c.state.IncBlocksProcessed(int(processed))
 			currentBlock = big.NewInt(0).Add(endBlock, big.NewInt(1))
 			if latestBlock-currentBlock.Uint64() <= c.cfg.BlockConfirmations.Uint64() {
 				time.Sleep(constant.RetryInterval)
@@ -164,12 +174,15 @@ type eleStruct struct {
 
 func (c *Chain) mosHandler(latestBlock, endBlock *big.Int) error {
 	query := c.BuildQuery(latestBlock, endBlock)
+	rpcStart := time.Now()
 	logs, err := c.conn.Client().FilterLogs(context.Background(), query)
+	c.state.ObserveRPC("FilterLogs", time.Since(rpcStart).Seconds())
 	if err != nil {
 		if c.isIgnorableError(err) {
 			c.log.Warn("filter logs ignore err", "start", latestBlock, "end", endBlock, "err", err)
 			return nil
 		}
+		c.state.RecordError("rpc_filter_logs", err.Error())
 		return fmt.Errorf("unable to Filter Logs: %w", err)
 	}
 	if len(logs) == 0 {
@@ -195,8 +208,10 @@ func (c *Chain) mosHandler(latestBlock, endBlock *big.Int) error {
 		}
 	}
 	if len(inserts) > 0 {
+		c.state.IncEventsMatched(len(inserts))
 		err = c.insert(inserts)
 		if err != nil {
+			c.state.RecordError("db_insert", err.Error())
 			c.log.Error("Insert failed", "insert", inserts, "err", err)
 			return err
 		}
@@ -213,9 +228,12 @@ func (c *Chain) insert(inserts []*eleStruct) error {
 		toChainId uint64
 		cid, _    = strconv.ParseInt(c.cfg.Id, 10, 64)
 	)
+	hdrStart := time.Now()
 	header, err := c.conn.Client().HeaderByNumber(context.Background(),
 		big.NewInt(0).SetUint64(inserts[0].ll.BlockNumber))
+	c.state.ObserveRPC("HeaderByNumber", time.Since(hdrStart).Seconds())
 	if err != nil {
+		c.state.RecordError("rpc_header_by_number", err.Error())
 		c.log.Error("Get header by block number failed", "blockNumber", inserts[0].ll.BlockNumber, "err", err)
 		header = &types.Header{
 			Time: uint64(time.Now().Unix() - c.cfg.BlockConfirmations.Int64()),
@@ -253,8 +271,11 @@ func (c *Chain) insert(inserts []*eleStruct) error {
 	}
 
 	for _, s := range c.storages {
+		dbStart := time.Now()
 		err = s.Mos(toChainId, moss)
+		c.state.ObserveDBInsert(s.Type(), time.Since(dbStart).Seconds())
 		if err != nil {
+			c.state.RecordError("db_mos", err.Error())
 			c.log.Error("Insert failed", "mos", moss, "err", err)
 			continue
 		}

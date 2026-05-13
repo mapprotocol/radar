@@ -39,12 +39,16 @@ func (c *Chain) sync() error {
 			c.log.Info("Stop syncing blocks")
 			return nil
 		default:
+			rpcStart := time.Now()
 			latestBlock, err := c.conn.LatestBlock()
+			c.state.ObserveRPC("LatestBlock", time.Since(rpcStart).Seconds())
 			if err != nil {
+				c.state.RecordError("rpc_latest_block", err.Error())
 				c.log.Error("Unable to get latest block", "block", currentBlock, "err", err)
 				time.Sleep(constant.RetryInterval)
 				continue
 			}
+			c.state.SetLatestBlock(int64(latestBlock))
 
 			if latestBlock != savedBN {
 				savedBN = latestBlock
@@ -92,6 +96,12 @@ func (c *Chain) sync() error {
 
 			c.currentProgress = endBlock.Int64()
 			c.latest = int64(latestBlock) // watchDog
+			processed := endBlock.Int64() - currentBlock.Int64() + 1
+			if processed < 1 {
+				processed = 1
+			}
+			c.state.SetCurrentBlock(endBlock.Int64())
+			c.state.IncBlocksProcessed(int(processed))
 			currentBlock = big.NewInt(0).Add(endBlock, big.NewInt(1))
 			if latestBlock-currentBlock.Uint64() <= c.cfg.BlockConfirmations.Uint64() {
 				time.Sleep(constant.RetryInterval)

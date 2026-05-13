@@ -6,6 +6,7 @@ import (
 	ethkeystore "github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/mapprotocol/filter/internal/filter/config"
+	"github.com/mapprotocol/filter/internal/observability"
 	"github.com/mapprotocol/filter/internal/pkg/dao"
 	"github.com/mapprotocol/filter/internal/pkg/storage"
 	"github.com/mapprotocol/filter/pkg/blockstore"
@@ -23,6 +24,7 @@ type Chain struct {
 	events                           []*dao.Event
 	eventId, currentProgress, latest int64
 	isBackUp                         bool
+	state                            *observability.ChainState
 }
 
 func New(cfg config.RawChainConfig, storages []storage.Saver, latest, isBackUp bool) (*Chain, error) {
@@ -60,6 +62,7 @@ func New(cfg config.RawChainConfig, storages []storage.Saver, latest, isBackUp b
 		storages:  storages,
 		events:    make([]*dao.Event, 0),
 		isBackUp:  isBackUp,
+		state:     observability.RegisterChain(eCfg.Name, "sync"),
 	}
 	ret.log.SetHandler(log.LvlFilterHandler(log.LvlInfo, log.StdoutHandler))
 

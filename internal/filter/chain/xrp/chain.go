@@ -3,6 +3,7 @@ package xrp
 import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/mapprotocol/filter/internal/filter/config"
+	"github.com/mapprotocol/filter/internal/observability"
 	"github.com/mapprotocol/filter/internal/pkg/dao"
 	"github.com/mapprotocol/filter/internal/pkg/storage"
 	"github.com/mapprotocol/filter/pkg/blockstore"
@@ -17,6 +18,7 @@ type Chain struct {
 	bs                               blockstore.BlockStorer
 	conn                             Conner
 	eventId, currentProgress, latest int64
+	state                            *observability.ChainState
 }
 
 func New(cfg config.RawChainConfig, storages []storage.Saver) (*Chain, error) {
@@ -45,6 +47,7 @@ func New(cfg config.RawChainConfig, storages []storage.Saver) (*Chain, error) {
 		bs:        bs,
 		conn:      conn,
 		storages:  storages,
+		state:     observability.RegisterChain(eCfg.Name, "sync"),
 	}, nil
 }
 

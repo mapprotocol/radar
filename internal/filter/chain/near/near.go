@@ -4,6 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/go-redis/redis/v8"
 	"github.com/mapprotocol/filter/internal/filter/config"
+	"github.com/mapprotocol/filter/internal/observability"
 	"github.com/mapprotocol/filter/internal/pkg/storage"
 	"github.com/mapprotocol/filter/pkg/blockstore"
 )
@@ -15,6 +16,7 @@ type Chain struct {
 	rdb      *redis.Client
 	bs       blockstore.BlockStorer
 	storages []storage.Saver
+	state    *observability.ChainState
 }
 
 func New(cfg config.RawChainConfig, storages []storage.Saver) (*Chain, error) {
@@ -28,6 +30,7 @@ func New(cfg config.RawChainConfig, storages []storage.Saver) (*Chain, error) {
 		cfg:      eCfg,
 		stop:     make(chan struct{}),
 		storages: storages,
+		state:    observability.RegisterChain(eCfg.Name, "sync"),
 	}
 	ret.log.SetHandler(log.LvlFilterHandler(log.LvlInfo, log.StdoutHandler))
 	opt, err := redis.ParseURL(cfg.Opts.Redis)

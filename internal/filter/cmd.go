@@ -5,6 +5,7 @@ import (
 	"github.com/mapprotocol/filter/internal/filter/chain"
 	"github.com/mapprotocol/filter/internal/filter/config"
 	"github.com/mapprotocol/filter/internal/filter/core"
+	"github.com/mapprotocol/filter/internal/observability"
 	"github.com/mapprotocol/filter/internal/pkg/constant"
 	"github.com/mapprotocol/filter/internal/pkg/storage"
 	"github.com/mapprotocol/filter/pkg/utils"
@@ -37,6 +38,24 @@ var Command = &cli.Command{
 		latest := cli.Bool(constant.LatestFlag.Name)
 		isBackUp := cli.Bool(constant.BackUpFlag.Name)
 		utils.Init(cfg.Other.Env, cfg.Other.MonitorUrl)
+
+		// Stand up observability (metrics + /status + pprof + alarms) before
+		// any chain goroutines start so the first tick can already publish.
+		obsAddr := ":9101"
+		if cfg.Other.ObservabilityAddr != "" {
+			obsAddr = cfg.Other.ObservabilityAddr
+		}
+		obs := observability.New("radar", observability.Config{
+			Addr:    obsAddr,
+			AlarmFn: utils.Alarm,
+		})
+		observability.SetDefault(obs)
+		obs.StartHTTP()
+		obs.StartBlockLagAlarms(observability.DefaultBlockLagRule())
+		log.Info("Observability HTTP serving", "addr", obsAddr,
+			"endpoints", "/metrics /status /healthz /debug/pprof/")
+		defer obs.Stop()
+
 		chains, err := chain.Init(cfg, storages, latest, isBackUp)
 		if err != nil {
 			return err

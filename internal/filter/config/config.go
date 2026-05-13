@@ -44,9 +44,10 @@ type opt struct {
 }
 
 type Construction struct {
-	MonitorUrl string `json:"monitor_url,omitempty"`
-	Env        string `json:"env,omitempty"`
-	Butter     string `json:"butter,omitempty"`
+	MonitorUrl        string `json:"monitor_url,omitempty"`
+	Env               string `json:"env,omitempty"`
+	Butter            string `json:"butter,omitempty"`
+	ObservabilityAddr string `json:"observability_addr,omitempty"`
 }
 
 type Storage struct {

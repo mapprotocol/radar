@@ -93,6 +93,8 @@ func (c *Chain) sync() error {
 							continue
 						}
 						_ = bs.StoreBlock(big.NewInt(0).SetUint64(t.LT))
+						c.state.SetCurrentBlock(int64(t.LT))
+						c.state.IncBlocksProcessed(1)
 						msgs, err := t.IO.Out.ToSlice()
 						if err != nil {
 							c.log.Error("Tx ToSlice failed", "addr", addr, "txHash", txHash)

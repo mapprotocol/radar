@@ -39,10 +39,13 @@ func (c *Chain) sync() error {
 			data := StreamerMessage{}
 			err = json.Unmarshal([]byte(result), &data)
 			if err != nil {
+				c.state.RecordError("json_unmarshal", err.Error())
 				c.log.Error("json marshal failed", "err", err, "data", result)
 				time.Sleep(constant.RetryInterval)
 				continue
 			}
+			c.state.SetCurrentBlock(int64(data.Block.Header.Height))
+			c.state.IncBlocksProcessed(1)
 			idx := 0
 			for _, shard := range data.Shards {
 				for _, outcome := range shard.ReceiptExecutionOutcomes {

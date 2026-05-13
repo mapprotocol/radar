@@ -3,6 +3,7 @@ package ton
 import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/mapprotocol/filter/internal/filter/config"
+	"github.com/mapprotocol/filter/internal/observability"
 	"github.com/mapprotocol/filter/internal/pkg/dao"
 	"github.com/mapprotocol/filter/internal/pkg/storage"
 )
@@ -14,6 +15,7 @@ type Chain struct {
 	storages             []storage.Saver
 	events               []*dao.Event
 	eventId              int64
+	state                *observability.ChainState
 }
 
 func New(cfg config.RawChainConfig, storages []storage.Saver) (*Chain, error) {
@@ -28,6 +30,7 @@ func New(cfg config.RawChainConfig, storages []storage.Saver) (*Chain, error) {
 		dog:       make(chan struct{}),
 		cfg:       eCfg,
 		storages:  storages,
+		state:     observability.RegisterChain(eCfg.Name, "sync"),
 	}, nil
 }
 
