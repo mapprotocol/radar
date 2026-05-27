@@ -35,6 +35,25 @@ func (m *Mos) List(c *gin.Context) {
 	WriteResponse(c, nil, ret)
 }
 
+func (m *Mos) MaxID(c *gin.Context) {
+	var req stream.MosListReq
+	if err := c.ShouldBind(&req); err != nil {
+		WriteResponse(c, err, nil)
+		return
+	}
+	if req.ProjectId == 0 {
+		WriteResponse(c, errors.New("param project id is zero"), nil)
+		return
+	}
+
+	ret, err := m.srv.MaxID(c, &req)
+	if err != nil {
+		WriteResponse(c, errors.Wrap(err, "get Mos max id failed"), nil)
+		return
+	}
+	WriteResponse(c, nil, ret)
+}
+
 func (m *Mos) BlockList(c *gin.Context) {
 	var req stream.MosListReq
 	if err := c.ShouldBind(&req); err != nil {

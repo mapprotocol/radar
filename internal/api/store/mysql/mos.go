@@ -85,6 +85,39 @@ func (m *Mos) List(ctx context.Context, c *store.MosCond) ([]*dao.Mos, int64, er
 	return ret, total, err
 }
 
+func (m *Mos) MaxID(ctx context.Context, c *store.MosCond) (int64, error) {
+	db := m.db.WithContext(ctx)
+	if c.Id != 0 {
+		db = db.Where("id > ?", c.Id)
+	}
+	if c.BlockNumber != 0 {
+		db = db.Where("block_number >= ?", c.BlockNumber)
+	}
+	if c.ChainId != 0 {
+		db = db.Where("chain_id = ?", c.ChainId)
+	}
+	if c.ProjectId != 0 {
+		db = db.Where("project_id = ?", c.ProjectId)
+	}
+	if c.EventId != 0 {
+		db = db.Where("event_id = ?", c.EventId)
+	}
+	if c.TxHash != "" {
+		db = db.Where("tx_hash = ?", c.TxHash)
+	}
+	db = db.Where("event_id IN ?", c.EventIds)
+
+	ret := dao.Mos{}
+	err := db.Limit(1).Order(clause.OrderByColumn{
+		Column: clause.Column{Table: clause.CurrentTable, Name: clause.PrimaryKey},
+		Desc:   true,
+	}).Find(&ret).Error
+	if err != nil {
+		return 0, err
+	}
+	return ret.Id, nil
+}
+
 func (m *Mos) BlockList(ctx context.Context, c *store.MosCond) ([]*dao.Mos, int64, error) {
 	db := m.db.WithContext(ctx)
 	db = db.Where("block_number = ?", c.BlockNumber).Where("event_id IN ?", c.EventIds)

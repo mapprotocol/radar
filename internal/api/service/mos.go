@@ -14,6 +14,7 @@ import (
 
 type MosSrv interface {
 	List(context.Context, *stream.MosListReq) (*stream.MosListResp, error)
+	MaxID(context.Context, *stream.MosListReq) (map[string]interface{}, error)
 	BlockList(context.Context, *stream.MosListReq) (*stream.MosListResp, error)
 }
 
@@ -102,6 +103,47 @@ func (m *Mos) List(ctx context.Context, req *stream.MosListReq) (*stream.MosList
 		Total: total,
 		List:  ret,
 	}, nil
+}
+
+func (m *Mos) MaxID(ctx context.Context, req *stream.MosListReq) (map[string]interface{}, error) {
+	splits := strings.Split(req.Topic, ",")
+	eventIds := make([]int64, 0, len(splits))
+	for _, sp := range splits {
+		m.lock.RLock()
+		id, ok := m.eventCache[sp]
+		m.lock.RUnlock()
+		if ok && time.Now().Unix()-m.updateTime < 300 {
+			eventIds = append(eventIds, id...)
+			continue
+		}
+		events, _, err := m.event.List(ctx, &store.EventCond{Topic: sp, Limit: 100})
+		if err != nil {
+			return nil, err
+		}
+		ids := make([]int64, 0, len(events))
+		for _, ele := range events {
+			ids = append(ids, ele.Id)
+		}
+		m.lock.Lock()
+		m.eventCache[sp] = ids
+		m.lock.Unlock()
+		eventIds = append(eventIds, ids...)
+		m.updateTime = time.Now().Unix()
+	}
+
+	id, err := m.store.MaxID(ctx, &store.MosCond{
+		Id:          req.Id,
+		ChainId:     req.ChainId,
+		ProjectId:   req.ProjectId,
+		EventIds:    eventIds,
+		BlockNumber: req.BlockNumber,
+		TxHash:      req.TxHash,
+		Limit:       1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{"id": id}, nil
 }
 
 func (m *Mos) BlockList(ctx context.Context, req *stream.MosListReq) (*stream.MosListResp, error) {

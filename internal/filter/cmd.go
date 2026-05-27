@@ -60,6 +60,17 @@ var Command = &cli.Command{
 		if err != nil {
 			return err
 		}
+		// Register each successfully-constructed chain with observability and
+		// inject the state back. chain.Init returns chains in cfg.Chains order
+		// so the indices line up. Each Chain type implements a SetState method.
+		for i, ch := range chains {
+			state := observability.RegisterChain(cfg.Chains[i].Name, "sync")
+			if setter, ok := ch.(interface {
+				SetState(*observability.ChainState)
+			}); ok {
+				setter.SetState(state)
+			}
+		}
 		sysErr := make(chan error)
 		c := core.New(sysErr)
 		for _, ch := range chains {

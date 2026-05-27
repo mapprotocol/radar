@@ -109,6 +109,81 @@ func TestStatusEndpoint_EmptyHasZeroChains(t *testing.T) {
 	}
 }
 
+func TestIPRateLimiter_AllowsFiveRequestsPerMinutePerIP(t *testing.T) {
+	limiter := newIPRateLimiter(5, time.Minute)
+	now := time.Unix(1700000000, 0)
+	limiter.now = func() time.Time { return now }
+
+	handler := limiter.wrap(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	for i := 0; i < 5; i++ {
+		req := httptest.NewRequest("GET", "/dashboard", nil)
+		req.RemoteAddr = "192.0.2.10:1234"
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("request %d status = %d, want 204", i+1, rec.Code)
+		}
+	}
+
+	req := httptest.NewRequest("GET", "/dashboard", nil)
+	req.RemoteAddr = "192.0.2.10:1234"
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("sixth request status = %d, want 429", rec.Code)
+	}
+	if got := rec.Header().Get("Retry-After"); got != "60" {
+		t.Fatalf("Retry-After = %q, want 60", got)
+	}
+
+	now = now.Add(time.Minute)
+	rec = httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("request after reset status = %d, want 204", rec.Code)
+	}
+}
+
+func TestIPRateLimiter_SeparatesIPsAndHonorsForwardedHeaders(t *testing.T) {
+	limiter := newIPRateLimiter(1, time.Minute)
+	now := time.Unix(1700000000, 0)
+	limiter.now = func() time.Time { return now }
+
+	handler := limiter.wrap(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	first := httptest.NewRequest("GET", "/status", nil)
+	first.Header.Set("X-Forwarded-For", "198.51.100.1, 10.0.0.1")
+	first.RemoteAddr = "192.0.2.1:1234"
+	rec := httptest.NewRecorder()
+	handler(rec, first)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("first forwarded request status = %d, want 204", rec.Code)
+	}
+
+	second := httptest.NewRequest("GET", "/status", nil)
+	second.Header.Set("X-Forwarded-For", "198.51.100.2, 10.0.0.1")
+	second.RemoteAddr = "192.0.2.1:1234"
+	rec = httptest.NewRecorder()
+	handler(rec, second)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("different forwarded IP status = %d, want 204", rec.Code)
+	}
+
+	third := httptest.NewRequest("GET", "/status", nil)
+	third.Header.Set("X-Real-IP", "198.51.100.1")
+	third.RemoteAddr = "192.0.2.99:1234"
+	rec = httptest.NewRecorder()
+	handler(rec, third)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("same real IP status = %d, want 429", rec.Code)
+	}
+}
+
 func TestRecordError_BumpsCounter(t *testing.T) {
 	o := New("t", Config{})
 	cs := o.RegisterChain("bsc", "messenger")
@@ -127,21 +202,6 @@ func TestRecordError_BumpsCounter(t *testing.T) {
 	snap := cs.snapshot()
 	if snap.LastError != "schema mismatch" {
 		t.Fatalf("snapshot LastError = %q, want %q", snap.LastError, "schema mismatch")
-	}
-}
-
-func TestIncBlocksProcessedAndEventsMatched(t *testing.T) {
-	o := New("t", Config{})
-	cs := o.RegisterChain("xrp", "sync")
-	cs.IncBlocksProcessed(7)
-	cs.IncBlocksProcessed(3)
-	cs.IncEventsMatched(11)
-
-	if got := testutil.ToFloat64(cs.m.BlocksProcessed.WithLabelValues("xrp", "sync")); got != 10 {
-		t.Fatalf("blocks_processed = %v, want 10", got)
-	}
-	if got := testutil.ToFloat64(cs.m.EventsMatched.WithLabelValues("xrp", "sync")); got != 11 {
-		t.Fatalf("events_matched = %v, want 11", got)
 	}
 }
 

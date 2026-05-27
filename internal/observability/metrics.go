@@ -62,11 +62,6 @@ func newMetrics(namespace string) *Metrics {
 		Help: "Unix timestamp of the last time current_block moved forward.",
 	}, []string{"chain", "role"})
 
-	m.BlocksProcessed = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: namespace, Subsystem: "chain", Name: "blocks_processed_total",
-		Help: "Total blocks the loop has finished processing.",
-	}, []string{"chain", "role"})
-
 	m.EventsMatched = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace, Subsystem: "chain", Name: "events_matched_total",
 		Help: "Total log/tx events matched against filter rules.",
@@ -102,7 +97,7 @@ func newMetrics(namespace string) *Metrics {
 
 	for _, c := range []prometheus.Collector{
 		m.CurrentBlock, m.LatestBlock, m.BlockLag, m.LastProgressTs,
-		m.BlocksProcessed, m.EventsMatched, m.RPCLatency, m.DBInsertLatency,
+		m.EventsMatched, m.RPCLatency, m.DBInsertLatency,
 		m.ProcessLatency, m.ErrorsTotal, m.InFlight,
 	} {
 		reg.MustRegister(c)
@@ -167,14 +162,6 @@ func (s *ChainState) SetLatestBlock(b int64) {
 	s.mu.Unlock()
 	s.m.LatestBlock.WithLabelValues(s.Chain, s.Role).Set(float64(b))
 	s.m.BlockLag.WithLabelValues(s.Chain, s.Role).Set(float64(b - cur))
-}
-
-// IncBlocksProcessed bumps blocks_processed_total.
-func (s *ChainState) IncBlocksProcessed(n int) {
-	if s == nil {
-		return
-	}
-	s.m.BlocksProcessed.WithLabelValues(s.Chain, s.Role).Add(float64(n))
 }
 
 // IncEventsMatched bumps events_matched_total.

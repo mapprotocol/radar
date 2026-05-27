@@ -47,9 +47,10 @@ func New(cfg config.RawChainConfig, storages []storage.Saver) (*Chain, error) {
 		bs:        bs,
 		conn:      conn,
 		storages:  storages,
-		state:     observability.RegisterChain(eCfg.Name, "sync"),
 	}, nil
 }
+
+func (c *Chain) SetState(s *observability.ChainState) { c.state = s }
 
 func (c *Chain) Start() error {
 	err := c.getMatch()

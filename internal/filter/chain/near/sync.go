@@ -45,7 +45,6 @@ func (c *Chain) sync() error {
 				continue
 			}
 			c.state.SetCurrentBlock(int64(data.Block.Header.Height))
-			c.state.IncBlocksProcessed(1)
 			idx := 0
 			for _, shard := range data.Shards {
 				for _, outcome := range shard.ReceiptExecutionOutcomes {

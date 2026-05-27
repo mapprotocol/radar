@@ -96,12 +96,7 @@ func (c *Chain) sync() error {
 
 			c.currentProgress = endBlock.Int64()
 			c.latest = int64(latestBlock) // watchDog
-			processed := endBlock.Int64() - currentBlock.Int64() + 1
-			if processed < 1 {
-				processed = 1
-			}
 			c.state.SetCurrentBlock(endBlock.Int64())
-			c.state.IncBlocksProcessed(int(processed))
 			currentBlock = big.NewInt(0).Add(endBlock, big.NewInt(1))
 			if latestBlock-currentBlock.Uint64() <= c.cfg.BlockConfirmations.Uint64() {
 				time.Sleep(constant.RetryInterval)

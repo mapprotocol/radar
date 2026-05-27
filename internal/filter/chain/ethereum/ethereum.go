@@ -62,12 +62,15 @@ func New(cfg config.RawChainConfig, storages []storage.Saver, latest, isBackUp b
 		storages:  storages,
 		events:    make([]*dao.Event, 0),
 		isBackUp:  isBackUp,
-		state:     observability.RegisterChain(eCfg.Name, "sync"),
 	}
 	ret.log.SetHandler(log.LvlFilterHandler(log.LvlInfo, log.StdoutHandler))
 
 	return ret, nil
 }
+
+// SetState wires the chain to its observability ChainState. cmd.go calls this
+// after chain.Init so observability registration lives in one place.
+func (c *Chain) SetState(s *observability.ChainState) { c.state = s }
 
 func (c *Chain) Start() error {
 	err := c.getMatch(true)

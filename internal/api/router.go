@@ -1,12 +1,13 @@
 package api
 
 import (
+	"time"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/mapprotocol/filter/internal/api/handler"
 	"github.com/mapprotocol/filter/internal/api/store/mysql"
 	"github.com/pkg/errors"
-	"time"
 )
 
 func initMiddleware(g *gin.Engine) {
@@ -43,6 +44,7 @@ func initController(g *gin.Engine, dsn string) error {
 		mos := handler.NewMos(db)
 		group := v1.Group("mos")
 		group.GET("/list", mos.List)
+		group.GET("/max/id", mos.MaxID)
 		group.GET("/block/list", mos.BlockList)
 	}
 	{

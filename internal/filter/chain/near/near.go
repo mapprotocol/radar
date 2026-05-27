@@ -30,7 +30,6 @@ func New(cfg config.RawChainConfig, storages []storage.Saver) (*Chain, error) {
 		cfg:      eCfg,
 		stop:     make(chan struct{}),
 		storages: storages,
-		state:    observability.RegisterChain(eCfg.Name, "sync"),
 	}
 	ret.log.SetHandler(log.LvlFilterHandler(log.LvlInfo, log.StdoutHandler))
 	opt, err := redis.ParseURL(cfg.Opts.Redis)
@@ -41,6 +40,8 @@ func New(cfg config.RawChainConfig, storages []storage.Saver) (*Chain, error) {
 
 	return ret, nil
 }
+
+func (c *Chain) SetState(s *observability.ChainState) { c.state = s }
 
 func (c *Chain) Start() error {
 	go func() {
