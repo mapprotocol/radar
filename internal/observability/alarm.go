@@ -59,7 +59,7 @@ var DefaultBlockTimes = map[string]float64{
 func DefaultBlockLagRule() AlarmRule {
 	return AlarmRule{
 		Name:         "block_lag_high",
-		Threshold:    50,
+		Threshold:    100,
 		For:          5 * time.Minute,
 		Cooldown:     10 * time.Minute,
 		LagThreshold: 5 * time.Minute,
