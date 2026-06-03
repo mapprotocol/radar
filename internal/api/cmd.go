@@ -22,7 +22,7 @@ var Command = &cli.Command{
 
 		g := gin.Default()
 		initMiddleware(g)
-		err = initController(g, cfg.Dsn)
+		err = initController(g, cfg)
 		if err != nil {
 			log.Error("init failed", "err", err)
 			return err

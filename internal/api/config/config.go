@@ -12,8 +12,10 @@ const (
 )
 
 type Config struct {
-	Listen string
-	Dsn    string
+	Listen      string   `json:"listen"`
+	Dsn         string   `json:"dsn"`
+	APIAuthKeys []string `json:"api_auth_keys"`
+	IPWhitelist []string `json:"ip_whitelist"`
 }
 
 func Local(cfgFile string) (*Config, error) {
