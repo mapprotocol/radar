@@ -44,10 +44,14 @@ type opt struct {
 }
 
 type Construction struct {
-	MonitorUrl        string `json:"monitor_url,omitempty"`
-	Env               string `json:"env,omitempty"`
-	Butter            string `json:"butter,omitempty"`
-	ObservabilityAddr string `json:"observability_addr,omitempty"`
+	MonitorUrl                  string `json:"monitor_url,omitempty"`
+	Env                         string `json:"env,omitempty"`
+	Butter                      string `json:"butter,omitempty"`
+	ObservabilityAddr           string `json:"observability_addr,omitempty"`
+	OpsHubObservabilityURL      string `json:"ops_hub_observability_url,omitempty"`
+	OpsHubObservabilityAPIKey   string `json:"ops_hub_observability_api_key,omitempty"`
+	OpsHubObservabilityInstance string `json:"ops_hub_observability_instance,omitempty"`
+	OpsHubObservabilityInterval string `json:"ops_hub_observability_interval,omitempty"`
 }
 
 type Storage struct {

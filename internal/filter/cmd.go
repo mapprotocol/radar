@@ -1,6 +1,8 @@
 package filter
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/mapprotocol/filter/internal/filter/chain"
 	"github.com/mapprotocol/filter/internal/filter/config"
@@ -54,6 +56,21 @@ var Command = &cli.Command{
 		obs.StartBlockLagAlarms(observability.DefaultBlockLagRule())
 		log.Info("Observability HTTP serving", "addr", obsAddr,
 			"endpoints", "/metrics /status /healthz /debug/pprof/")
+		reportInterval := 15 * time.Second
+		if cfg.Other.OpsHubObservabilityInterval != "" {
+			parsed, err := time.ParseDuration(cfg.Other.OpsHubObservabilityInterval)
+			if err != nil {
+				return err
+			}
+			reportInterval = parsed
+		}
+		obs.StartOpsHubReporter(observability.OpsHubReporterConfig{
+			Endpoint: cfg.Other.OpsHubObservabilityURL,
+			APIKey:   cfg.Other.OpsHubObservabilityAPIKey,
+			Env:      cfg.Other.Env,
+			Instance: opsHubObservabilityInstance(cfg.Other),
+			Interval: reportInterval,
+		})
 		defer obs.Stop()
 
 		chains, err := chain.Init(cfg, storages, latest, isBackUp)
@@ -79,4 +96,11 @@ var Command = &cli.Command{
 		c.Start()
 		return nil
 	},
+}
+
+func opsHubObservabilityInstance(cfg config.Construction) string {
+	if cfg.OpsHubObservabilityInstance != "" {
+		return cfg.OpsHubObservabilityInstance
+	}
+	return cfg.Env
 }
