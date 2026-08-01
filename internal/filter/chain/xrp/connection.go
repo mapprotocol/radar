@@ -14,6 +14,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/mapprotocol/filter/internal/filter/chain/rpclog"
 	"github.com/mapprotocol/filter/internal/pkg/constant"
 )
 
@@ -36,13 +37,14 @@ func NewConn(endpoint string) *Connection {
 	}
 }
 
+func newHTTPClient() *http.Client {
+	return rpclog.NewHTTPClient(time.Minute)
+}
+
 // Connect starts the ethereum WS connection
 func (c *Connection) Connect() error {
 	fmt.Println("Connecting to xrp.go chain...", "url", c.endpoint)
-	cli := &http.Client{
-		Timeout: time.Second * 60,
-	}
-	c.conn = cli
+	c.conn = newHTTPClient()
 
 	return nil
 }

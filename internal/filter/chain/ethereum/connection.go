@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/mapprotocol/filter/internal/filter/chain/rpclog"
 	"github.com/mapprotocol/filter/internal/pkg/constant"
 )
 
@@ -42,6 +43,10 @@ func NewConn(endpoint string, kp *keystore.Key) *Connection {
 	}
 }
 
+func newHTTPClient() *http.Client {
+	return rpclog.NewHTTPClient(time.Minute)
+}
+
 // Connect starts the ethereum WS connection
 func (c *Connection) Connect() error {
 	var (
@@ -49,9 +54,7 @@ func (c *Connection) Connect() error {
 		rpcClient *rpc.Client
 	)
 	fmt.Println("Connecting to ethereum chain...", "url", c.endpoint)
-	cli := &http.Client{
-		Timeout: time.Second * 60,
-	}
+	cli := newHTTPClient()
 	withClient := rpc.WithHTTPClient(cli)
 	rpcClient, err = rpc.DialOptions(context.Background(), c.endpoint, withClient)
 	if err != nil {

@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
 const unknown = "unknown"
@@ -91,6 +93,13 @@ func NewTransport(base http.RoundTripper, logger Logger) *Transport {
 		base = http.DefaultTransport
 	}
 	return &Transport{base: base, logger: logger, now: time.Now}
+}
+
+func NewHTTPClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: NewTransport(http.DefaultTransport, log.Root()),
+	}
 }
 
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
