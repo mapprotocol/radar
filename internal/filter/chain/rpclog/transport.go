@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 const unknown = "unknown"
@@ -72,4 +73,42 @@ func sanitizeEndpoint(endpoint *url.URL) string {
 		Path:    endpoint.Path,
 		RawPath: endpoint.RawPath,
 	}).String()
+}
+
+type Logger interface {
+	Info(msg string, ctx ...interface{})
+	Error(msg string, ctx ...interface{})
+}
+
+type Transport struct {
+	base   http.RoundTripper
+	logger Logger
+	now    func() time.Time
+}
+
+func NewTransport(base http.RoundTripper, logger Logger) *Transport {
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return &Transport{base: base, logger: logger, now: time.Now}
+}
+
+func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
+	started := t.now()
+	resp, err := t.base.RoundTrip(req)
+	duration := t.now().Sub(started)
+	fields := []interface{}{
+		"http_method", req.Method,
+		"rpc_method", rpcMethods(req),
+		"endpoint", sanitizeEndpoint(req.URL),
+		"status", 0,
+		"duration", duration,
+	}
+	if err != nil {
+		t.logger.Error("Chain RPC request completed", append(fields, "err", err)...)
+		return resp, err
+	}
+	fields[7] = resp.StatusCode
+	t.logger.Info("Chain RPC request completed", fields...)
+	return resp, nil
 }

@@ -1,11 +1,13 @@
 package rpclog
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRPCMethods(t *testing.T) {
@@ -97,6 +99,130 @@ func TestSanitizeEndpointInvalidURLs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTransportLogsCompletedRequest(t *testing.T) {
+	const requestBody = `{"jsonrpc":"2.0","method":"eth_blockNumber","id":1}`
+	req, err := http.NewRequest(
+		http.MethodPost,
+		"https://user:secret@rpc.example.com/v1/key?token=secret#fragment",
+		strings.NewReader(requestBody),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var bodySeen string
+	base := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bodySeen = string(body)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(`{}`)),
+			Header:     make(http.Header),
+			Request:    req,
+		}, nil
+	})
+	logger := new(recordingLogger)
+	transport := NewTransport(base, logger)
+	times := []time.Time{time.Unix(0, 0), time.Unix(0, int64(128*time.Millisecond))}
+	transport.now = func() time.Time {
+		now := times[0]
+		times = times[1:]
+		return now
+	}
+
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if bodySeen != requestBody {
+		t.Fatalf("wrapped transport body = %q, want %q", bodySeen, requestBody)
+	}
+	if len(logger.entries) != 1 {
+		t.Fatalf("log count = %d, want 1", len(logger.entries))
+	}
+
+	entry := logger.entries[0]
+	if entry.level != "info" || entry.msg != "Chain RPC request completed" {
+		t.Fatalf("completion log = %#v", entry)
+	}
+	wantFields := map[string]interface{}{
+		"http_method": http.MethodPost,
+		"rpc_method":  "eth_blockNumber",
+		"endpoint":    "https://rpc.example.com/v1/key",
+		"status":      http.StatusOK,
+		"duration":    128 * time.Millisecond,
+	}
+	for key, want := range wantFields {
+		if got := entry.fields[key]; got != want {
+			t.Errorf("field %s = %#v, want %#v", key, got, want)
+		}
+	}
+}
+
+func TestTransportLogsRequestError(t *testing.T) {
+	wantErr := errors.New("dial failed")
+	req, err := http.NewRequest(http.MethodPost, "https://rpc.example.com", strings.NewReader(`{"method":"ledger"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	logger := new(recordingLogger)
+	transport := NewTransport(roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, wantErr
+	}), logger)
+
+	resp, gotErr := transport.RoundTrip(req)
+	if resp != nil || !errors.Is(gotErr, wantErr) {
+		t.Fatalf("RoundTrip() = (%v, %v), want (nil, %v)", resp, gotErr, wantErr)
+	}
+	if len(logger.entries) != 1 {
+		t.Fatalf("log count = %d, want 1", len(logger.entries))
+	}
+	entry := logger.entries[0]
+	loggedErr, ok := entry.fields["err"].(error)
+	if entry.level != "error" || entry.fields["status"] != 0 || !ok || !errors.Is(loggedErr, wantErr) {
+		t.Fatalf("error log = %#v", entry)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
+}
+
+type logEntry struct {
+	level  string
+	msg    string
+	fields map[string]interface{}
+}
+
+type recordingLogger struct {
+	entries []logEntry
+}
+
+func (l *recordingLogger) Info(msg string, ctx ...interface{}) {
+	l.entries = append(l.entries, logEntry{level: "info", msg: msg, fields: logFields(ctx)})
+}
+
+func (l *recordingLogger) Error(msg string, ctx ...interface{}) {
+	l.entries = append(l.entries, logEntry{level: "error", msg: msg, fields: logFields(ctx)})
+}
+
+func logFields(ctx []interface{}) map[string]interface{} {
+	fields := make(map[string]interface{}, len(ctx)/2)
+	for i := 0; i+1 < len(ctx); i += 2 {
+		key, ok := ctx[i].(string)
+		if ok {
+			fields[key] = ctx[i+1]
+		}
+	}
+	return fields
 }
 
 func newReplayableRequest(t *testing.T, body string) *http.Request {
