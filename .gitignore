@@ -42,3 +42,6 @@ centrifuge-chain/
 /solidity
 /cfgBuilder/*.toml
 tmp.txt
+
+# Isolated development worktrees
+.worktrees/
