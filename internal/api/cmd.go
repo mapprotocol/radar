@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mapprotocol/filter/internal/api/config"
 	"github.com/mapprotocol/filter/internal/pkg/constant"
+	"github.com/mapprotocol/filter/internal/version"
 	"github.com/urfave/cli/v2"
 )
 
@@ -15,6 +16,7 @@ var Command = &cli.Command{
 	Flags: []cli.Flag{constant.ConfigFileFlag},
 	Action: func(cli *cli.Context) error {
 		log.Root().SetHandler(log.StdoutHandler)
+		log.Info("Starting filter api", "version", version.Version, "commit", version.Commit, "build_date", version.BuildDate)
 		cfg, err := config.Local(cli.String(constant.ConfigFileFlag.Name))
 		if err != nil {
 			return err

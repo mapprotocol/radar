@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/mapprotocol/filter/internal/version"
 	"github.com/urfave/cli/v2"
 	"os"
 )
@@ -17,7 +18,7 @@ func New(cmds ...*cli.Command) *App {
 	app.Name = "filter"
 	app.Usage = "Filter"
 	app.Authors = []*cli.Author{{Name: "MAP Protocol 2023"}}
-	app.Version = "1.0.0"
+	app.Version = version.String()
 	app.EnableBashCompletion = true
 	app.Commands = append(app.Commands, cmds...)
 	ret.app = app

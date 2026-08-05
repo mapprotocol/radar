@@ -10,6 +10,7 @@ import (
 	"github.com/mapprotocol/filter/internal/observability"
 	"github.com/mapprotocol/filter/internal/pkg/constant"
 	"github.com/mapprotocol/filter/internal/pkg/storage"
+	"github.com/mapprotocol/filter/internal/version"
 	"github.com/mapprotocol/filter/pkg/utils"
 	"github.com/urfave/cli/v2"
 )
@@ -19,6 +20,7 @@ var Command = &cli.Command{
 	Flags: []cli.Flag{constant.ConfigFileFlag, constant.KeyPathFlag, constant.LatestFlag, constant.BackUpFlag},
 	Action: func(cli *cli.Context) error {
 		log.Root().SetHandler(log.StdoutHandler)
+		log.Info("Starting filter", "version", version.Version, "commit", version.Commit, "build_date", version.BuildDate)
 		cfg, err := config.Local(cli.String(constant.ConfigFileFlag.Name))
 		if err != nil {
 			return err

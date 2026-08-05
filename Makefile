@@ -1,5 +1,8 @@
 PROJECTNAME=$(shell basename "$(PWD)")
-VERSION=-ldflags="-X main.Version=$(shell git describe --tags)"
+VERSION?=$(shell git describe --tags --always --dirty)
+COMMIT?=$(shell git rev-parse --short HEAD)
+BUILD_DATE?=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS=-ldflags="-X github.com/mapprotocol/filter/internal/version.Version=$(VERSION) -X github.com/mapprotocol/filter/internal/version.Commit=$(COMMIT) -X github.com/mapprotocol/filter/internal/version.BuildDate=$(BUILD_DATE)"
 SOL_DIR=./solidity
 
 CENT_EMITTER_ADDR?=0x1
@@ -24,8 +27,8 @@ get:
 
 build:
 	@echo "  >  \033[32mBuilding filter...\033[0m "
-	cd cmd && go build -o ../build/filter
+	cd cmd && go build $(LDFLAGS) -o ../build/filter
 
 install:
 	@echo "  >  \033[32mInstalling filter...\033[0m "
-	cd cmd && go install $(VERSION)
+	cd cmd && go install $(LDFLAGS)
