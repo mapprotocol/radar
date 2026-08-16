@@ -29,6 +29,7 @@ type Conner interface {
 type Connection struct {
 	endpoint         string
 	conn             *ethclient.Client
+	transport        idleRoundTripper
 	reqTime          int64
 	cacheBNum, nonce uint64
 	kp               *keystore.Key
@@ -43,8 +44,24 @@ func NewConn(endpoint string, kp *keystore.Key) *Connection {
 	}
 }
 
-func newHTTPClient() *http.Client {
-	return rpclog.NewHTTPClient(time.Minute, http.DefaultTransport)
+const rpcHTTPClientTimeout = 30 * time.Second
+
+type idleRoundTripper interface {
+	http.RoundTripper
+	CloseIdleConnections()
+}
+
+func newRPCTransport() *http.Transport {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.IdleConnTimeout = 30 * time.Second
+	transport.TLSHandshakeTimeout = 3 * time.Second
+	transport.ExpectContinueTimeout = time.Second
+	transport.MaxConnsPerHost = 0
+	return transport
+}
+
+func newHTTPClient(base http.RoundTripper) *http.Client {
+	return rpclog.NewHTTPClient(rpcHTTPClientTimeout, base)
 }
 
 // Connect starts the ethereum WS connection
@@ -54,12 +71,15 @@ func (c *Connection) Connect() error {
 		rpcClient *rpc.Client
 	)
 	fmt.Println("Connecting to ethereum chain...", "url", c.endpoint)
-	cli := newHTTPClient()
+	transport := newRPCTransport()
+	cli := newHTTPClient(transport)
 	withClient := rpc.WithHTTPClient(cli)
 	rpcClient, err = rpc.DialOptions(context.Background(), c.endpoint, withClient)
 	if err != nil {
+		transport.CloseIdleConnections()
 		return err
 	}
+	c.transport = transport
 	c.conn = ethclient.NewClient(rpcClient)
 	return nil
 }
