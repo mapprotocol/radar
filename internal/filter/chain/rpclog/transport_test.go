@@ -190,6 +190,30 @@ func TestTransportLogsRequestError(t *testing.T) {
 	}
 }
 
+func TestNewHTTPClientWrapsSuppliedTransport(t *testing.T) {
+	base := new(noContentRoundTripper)
+
+	client := NewHTTPClient(7*time.Second, base)
+	if client.Timeout != 7*time.Second {
+		t.Fatalf("timeout = %v, want %v", client.Timeout, 7*time.Second)
+	}
+	transport, ok := client.Transport.(*Transport)
+	if !ok || transport.base != base {
+		t.Fatalf("transport = %T, want logging wrapper around supplied base", client.Transport)
+	}
+}
+
+type noContentRoundTripper struct{}
+
+func (*noContentRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusNoContent,
+		Body:       http.NoBody,
+		Header:     make(http.Header),
+		Request:    req,
+	}, nil
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {

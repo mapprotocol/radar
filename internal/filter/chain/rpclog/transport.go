@@ -95,10 +95,10 @@ func NewTransport(base http.RoundTripper, logger Logger) *Transport {
 	return &Transport{base: base, logger: logger, now: time.Now}
 }
 
-func NewHTTPClient(timeout time.Duration) *http.Client {
+func NewHTTPClient(timeout time.Duration, base http.RoundTripper) *http.Client {
 	return &http.Client{
 		Timeout:   timeout,
-		Transport: NewTransport(http.DefaultTransport, log.Root()),
+		Transport: NewTransport(base, log.Root()),
 	}
 }
 

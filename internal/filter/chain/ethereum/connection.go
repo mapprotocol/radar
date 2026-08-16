@@ -44,7 +44,7 @@ func NewConn(endpoint string, kp *keystore.Key) *Connection {
 }
 
 func newHTTPClient() *http.Client {
-	return rpclog.NewHTTPClient(time.Minute)
+	return rpclog.NewHTTPClient(time.Minute, http.DefaultTransport)
 }
 
 // Connect starts the ethereum WS connection
