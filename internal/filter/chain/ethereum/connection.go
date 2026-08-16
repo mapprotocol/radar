@@ -138,4 +138,11 @@ func (c *Connection) Close() {
 	if c.conn != nil {
 		c.conn.Close()
 	}
+	c.CloseIdleConnections()
+}
+
+func (c *Connection) CloseIdleConnections() {
+	if c.transport != nil {
+		c.transport.CloseIdleConnections()
+	}
 }
