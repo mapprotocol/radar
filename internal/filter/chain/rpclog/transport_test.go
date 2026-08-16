@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -227,6 +228,87 @@ func TestNewHTTPClientWrapsSuppliedTransport(t *testing.T) {
 	if !ok || transport.base != base {
 		t.Fatalf("transport = %T, want logging wrapper around supplied base", client.Transport)
 	}
+}
+
+func TestTransportLogsRealHTTPTrace(t *testing.T) {
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		defer req.Body.Close()
+		_, _ = io.Copy(io.Discard, req.Body)
+		time.Sleep(25 * time.Millisecond)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"jsonrpc":"2.0","id":1,"result":"0x1"}`)
+	}))
+	server.EnableHTTP2 = true
+	server.StartTLS()
+	defer server.Close()
+
+	base, ok := server.Client().Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("server transport = %T, want *http.Transport", server.Client().Transport)
+	}
+	base = base.Clone()
+	defer base.CloseIdleConnections()
+
+	logger := new(recordingLogger)
+	client := &http.Client{Transport: NewTransport(base, logger)}
+	for range 2 {
+		req, err := http.NewRequest(
+			http.MethodPost,
+			server.URL+"/filter/test",
+			strings.NewReader(`{"jsonrpc":"2.0","method":"eth_blockNumber","id":1}`),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, readErr := io.Copy(io.Discard, resp.Body)
+		closeErr := resp.Body.Close()
+		if readErr != nil || closeErr != nil {
+			t.Fatalf("response body errors = (%v, %v)", readErr, closeErr)
+		}
+	}
+
+	if len(logger.entries) != 2 {
+		t.Fatalf("log count = %d, want 2", len(logger.entries))
+	}
+	fresh, reused := logger.entries[0], logger.entries[1]
+	if fresh.fields["proto"] != "HTTP/2.0" || fresh.fields["reused"] != false {
+		t.Fatalf("fresh connection metadata = %#v", fresh.fields)
+	}
+	if traceDuration(t, fresh, "tls_handshake") <= 0 || traceDuration(t, fresh, "server_wait") < 20*time.Millisecond {
+		t.Fatalf("fresh connection timings = %#v", fresh.fields)
+	}
+	if reused.fields["proto"] != "HTTP/2.0" || reused.fields["reused"] != true || reused.fields["was_idle"] != true {
+		t.Fatalf("reused connection metadata = %#v", reused.fields)
+	}
+	if traceDuration(t, reused, "tls_handshake") != 0 || traceDuration(t, reused, "server_wait") < 20*time.Millisecond {
+		t.Fatalf("reused connection timings = %#v", reused.fields)
+	}
+
+	logTraceEntry(t, "fresh", fresh)
+	logTraceEntry(t, "reused", reused)
+}
+
+func traceDuration(t *testing.T, entry logEntry, field string) time.Duration {
+	t.Helper()
+	duration, ok := entry.fields[field].(time.Duration)
+	if !ok {
+		t.Fatalf("field %s = %#v, want time.Duration", field, entry.fields[field])
+	}
+	return duration
+}
+
+func logTraceEntry(t *testing.T, label string, entry logEntry) {
+	t.Helper()
+	t.Logf("%s msg=%q http_method=%v rpc_method=%v endpoint=%v status=%v duration=%v conn_wait=%v dns=%v tcp_connect=%v tls_handshake=%v server_wait=%v reused=%v was_idle=%v idle_time=%v proto=%v",
+		label, entry.msg, entry.fields["http_method"], entry.fields["rpc_method"],
+		entry.fields["endpoint"], entry.fields["status"], entry.fields["duration"],
+		entry.fields["conn_wait"], entry.fields["dns"], entry.fields["tcp_connect"],
+		entry.fields["tls_handshake"], entry.fields["server_wait"], entry.fields["reused"],
+		entry.fields["was_idle"], entry.fields["idle_time"], entry.fields["proto"])
 }
 
 type noContentRoundTripper struct{}
