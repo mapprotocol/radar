@@ -104,14 +104,29 @@ func NewHTTPClient(timeout time.Duration, base http.RoundTripper) *http.Client {
 
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	started := t.now()
-	resp, err := t.base.RoundTrip(req)
+	trace := newRequestTrace(t.now)
+	resp, err := t.base.RoundTrip(trace.withRequest(req))
 	duration := t.now().Sub(started)
+	timings := trace.snapshot()
+	proto := unknown
+	if resp != nil && resp.Proto != "" {
+		proto = resp.Proto
+	}
 	fields := []interface{}{
 		"http_method", req.Method,
 		"rpc_method", rpcMethods(req),
 		"endpoint", sanitizeEndpoint(req.URL),
 		"status", 0,
 		"duration", duration,
+		"conn_wait", timings.ConnWait,
+		"dns", timings.DNS,
+		"tcp_connect", timings.TCPConnect,
+		"tls_handshake", timings.TLSHandshake,
+		"server_wait", timings.ServerWait,
+		"reused", timings.Reused,
+		"was_idle", timings.WasIdle,
+		"idle_time", timings.IdleTime,
+		"proto", proto,
 	}
 	if err != nil {
 		t.logger.Error("Chain RPC request completed", append(fields, "err", err)...)

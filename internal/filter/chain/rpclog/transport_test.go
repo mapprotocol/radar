@@ -121,6 +121,7 @@ func TestTransportLogsCompletedRequest(t *testing.T) {
 		bodySeen = string(body)
 		return &http.Response{
 			StatusCode: http.StatusOK,
+			Proto:      "HTTP/1.1",
 			Body:       io.NopCloser(strings.NewReader(`{}`)),
 			Header:     make(http.Header),
 			Request:    req,
@@ -152,11 +153,20 @@ func TestTransportLogsCompletedRequest(t *testing.T) {
 		t.Fatalf("completion log = %#v", entry)
 	}
 	wantFields := map[string]interface{}{
-		"http_method": http.MethodPost,
-		"rpc_method":  "eth_blockNumber",
-		"endpoint":    "https://rpc.example.com/v1/key",
-		"status":      http.StatusOK,
-		"duration":    128 * time.Millisecond,
+		"http_method":   http.MethodPost,
+		"rpc_method":    "eth_blockNumber",
+		"endpoint":      "https://rpc.example.com/v1/key",
+		"status":        http.StatusOK,
+		"duration":      128 * time.Millisecond,
+		"conn_wait":     time.Duration(0),
+		"dns":           time.Duration(0),
+		"tcp_connect":   time.Duration(0),
+		"tls_handshake": time.Duration(0),
+		"server_wait":   time.Duration(0),
+		"reused":        false,
+		"was_idle":      false,
+		"idle_time":     time.Duration(0),
+		"proto":         "HTTP/1.1",
 	}
 	for key, want := range wantFields {
 		if got := entry.fields[key]; got != want {
@@ -187,6 +197,22 @@ func TestTransportLogsRequestError(t *testing.T) {
 	loggedErr, ok := entry.fields["err"].(error)
 	if entry.level != "error" || entry.fields["status"] != 0 || !ok || !errors.Is(loggedErr, wantErr) {
 		t.Fatalf("error log = %#v", entry)
+	}
+	wantTraceFields := map[string]interface{}{
+		"conn_wait":     time.Duration(0),
+		"dns":           time.Duration(0),
+		"tcp_connect":   time.Duration(0),
+		"tls_handshake": time.Duration(0),
+		"server_wait":   time.Duration(0),
+		"reused":        false,
+		"was_idle":      false,
+		"idle_time":     time.Duration(0),
+		"proto":         unknown,
+	}
+	for key, want := range wantTraceFields {
+		if got := entry.fields[key]; got != want {
+			t.Errorf("field %s = %#v, want %#v", key, got, want)
+		}
 	}
 }
 
