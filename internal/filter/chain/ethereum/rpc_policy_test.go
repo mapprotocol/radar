@@ -68,3 +68,39 @@ func TestConnectionCloseClosesOwnedIdleConnections(t *testing.T) {
 		t.Fatalf("close calls = %d, want 1", transport.closeCalls)
 	}
 }
+
+func TestRunRPCCallUsesDeadlineAndRecoversConnection(t *testing.T) {
+	transport := new(recordingIdleTransport)
+	connection := &Connection{transport: transport}
+	started := time.Now()
+
+	_, err := runRPCCall(context.Background(), 20*time.Millisecond, connection,
+		func(ctx context.Context) (string, error) {
+			deadline, ok := ctx.Deadline()
+			if !ok || deadline.Sub(started) > 50*time.Millisecond {
+				t.Fatalf("deadline = %v, want a short deadline", deadline)
+			}
+			<-ctx.Done()
+			return "", ctx.Err()
+		})
+
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("error = %v, want %v", err, context.DeadlineExceeded)
+	}
+	if transport.closeCalls != 1 {
+		t.Fatalf("close calls = %d, want 1", transport.closeCalls)
+	}
+}
+
+func TestRunRPCCallPreservesParentCancellation(t *testing.T) {
+	parent, cancelParent := context.WithCancel(context.Background())
+	cancelParent()
+
+	_, err := runRPCCall(parent, time.Minute, nil, func(ctx context.Context) (string, error) {
+		return "", ctx.Err()
+	})
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want %v", err, context.Canceled)
+	}
+}

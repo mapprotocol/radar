@@ -136,12 +136,15 @@ func (c *Chain) rangeScan(event *dao.Event, end int64) {
 	topics = append(topics, common.HexToHash(event.Topic))
 	for i := start.Int64(); i < end; i += 20 {
 		// querying for logs
-		logs, err := c.conn.Client().FilterLogs(context.Background(), ethereum.FilterQuery{
-			FromBlock: big.NewInt(i),
-			ToBlock:   big.NewInt(i + 20),
-			Addresses: []common.Address{common.HexToAddress(event.Address)},
-			Topics:    [][]common.Hash{topics},
-		})
+		logs, err := runRPCCall(context.Background(), historicalLogsRPCTimeout, c.conn,
+			func(ctx context.Context) ([]types.Log, error) {
+				return c.conn.Client().FilterLogs(ctx, ethereum.FilterQuery{
+					FromBlock: big.NewInt(i),
+					ToBlock:   big.NewInt(i + 20),
+					Addresses: []common.Address{common.HexToAddress(event.Address)},
+					Topics:    [][]common.Hash{topics},
+				})
+			})
 		if err != nil {
 			continue
 		}
@@ -170,7 +173,10 @@ type eleStruct struct {
 func (c *Chain) mosHandler(latestBlock, endBlock *big.Int) error {
 	query := c.BuildQuery(latestBlock, endBlock)
 	rpcStart := time.Now()
-	logs, err := c.conn.Client().FilterLogs(context.Background(), query)
+	logs, err := runRPCCall(context.Background(), filterLogsRPCTimeout, c.conn,
+		func(ctx context.Context) ([]types.Log, error) {
+			return c.conn.Client().FilterLogs(ctx, query)
+		})
 	c.state.ObserveRPC("FilterLogs", time.Since(rpcStart).Seconds())
 	if err != nil {
 		if c.isIgnorableError(err) {
@@ -224,8 +230,11 @@ func (c *Chain) insert(inserts []*eleStruct) error {
 		cid, _    = strconv.ParseInt(c.cfg.Id, 10, 64)
 	)
 	hdrStart := time.Now()
-	header, err := c.conn.Client().HeaderByNumber(context.Background(),
-		big.NewInt(0).SetUint64(inserts[0].ll.BlockNumber))
+	header, err := runRPCCall(context.Background(), blockHeaderRPCTimeout, c.conn,
+		func(ctx context.Context) (*types.Header, error) {
+			return c.conn.Client().HeaderByNumber(ctx,
+				big.NewInt(0).SetUint64(inserts[0].ll.BlockNumber))
+		})
 	c.state.ObserveRPC("HeaderByNumber", time.Since(hdrStart).Seconds())
 	if err != nil {
 		c.state.RecordError("rpc_header_by_number", err.Error())

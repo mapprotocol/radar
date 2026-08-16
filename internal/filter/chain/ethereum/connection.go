@@ -124,7 +124,10 @@ func (c *Connection) LatestBlock() (uint64, error) {
 	if time.Now().Unix()-c.reqTime < constant.ReqInterval {
 		return c.cacheBNum, nil
 	}
-	num, err := c.conn.BlockNumber(context.Background())
+	num, err := runRPCCall(context.Background(), latestBlockRPCTimeout, c,
+		func(ctx context.Context) (uint64, error) {
+			return c.conn.BlockNumber(ctx)
+		})
 	if err != nil {
 		return 0, err
 	}

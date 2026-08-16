@@ -18,6 +18,20 @@ type idleConnectionCloser interface {
 	CloseIdleConnections()
 }
 
+func runRPCCall[T any](
+	parent context.Context,
+	timeout time.Duration,
+	connection any,
+	call func(context.Context) (T, error),
+) (T, error) {
+	ctx, cancel := context.WithTimeout(parent, timeout)
+	result, err := call(ctx)
+	ctxErr := ctx.Err()
+	cancel()
+	closeIdleConnectionsOnRPCError(connection, ctxErr, err)
+	return result, err
+}
+
 func closeIdleConnectionsOnRPCError(connection any, ctxErr, err error) {
 	if err == nil {
 		return
