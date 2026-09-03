@@ -58,12 +58,15 @@ needed. Observability is available on the host loopback interface at port
 `9101`.
 
 To run the API command instead, override the default arguments and mount its
-configuration:
+configuration. Set the mounted API config's `listen` value to `":8080"`; the
+container port and host mapping below must match that value. If you use another
+API port, change both values together:
 
 ```bash
 docker run -d \
   --name radar-api \
   --restart unless-stopped \
+  --publish 127.0.0.1:8080:8080 \
   --volume /srv/radar/api.json:/etc/radar/api.json:ro \
   ghcr.io/mapprotocol/radar:v1.2.3 \
   api --config /etc/radar/api.json
