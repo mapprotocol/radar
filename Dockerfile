@@ -15,7 +15,8 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
 COPY . .
-RUN --mount=type=cache,target=/root/.cache/go-build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath \
       -ldflags="-s -w -X github.com/mapprotocol/filter/internal/version.Version=$VERSION -X github.com/mapprotocol/filter/internal/version.Commit=$COMMIT -X github.com/mapprotocol/filter/internal/version.BuildDate=$BUILD_DATE" \

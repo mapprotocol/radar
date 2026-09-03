@@ -36,7 +36,33 @@ jobs:
       - name: Run tests
         run: go test -count=1 ./...
 
-  container:
+  container-pr:
+    if: github.event_name == 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  container-publish:
+    if: github.event_name == 'push'
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -52,6 +78,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      - name: Record build date
+        id: build
+        shell: bash
+        run: echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
       - name: Generate image metadata
         id: meta
         uses: docker/metadata-action@v6
@@ -61,26 +92,22 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-
             type=ref,event=tag
-
-      - name: Record build date
-        id: build
-        shell: bash
-        run: echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+          labels: |
+            org.opencontainers.image.created=${{ steps.build.outputs.date }}
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and optionally publish image
+      - name: Build and publish image
         uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |

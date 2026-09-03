@@ -10,5 +10,9 @@ coverage
 *.out
 *.log
 tmp.txt
+.env
+keys/
+*.key
+config.toml
 config*.json
 keystore*
