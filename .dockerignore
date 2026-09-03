@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.worktrees
+.DS_Store
+**/.DS_Store
+build
+coverage
+*.cover
+*.out
+*.log
+tmp.txt
+config*.json
+keystore*
