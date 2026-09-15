@@ -52,6 +52,7 @@ var DefaultBlockTimes = map[string]float64{
 	"map":       5,
 	"mapchain":  5,
 	"robinhood": 0.1,
+	"arc":       0.25,
 }
 
 // DefaultBlockLagRule: fire when current-vs-latest gap represents more than 5
