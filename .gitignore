@@ -45,3 +45,4 @@ tmp.txt
 
 # Isolated development worktrees
 .worktrees/
+docs/
