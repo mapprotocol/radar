@@ -17,6 +17,7 @@ type EventSrv interface {
 	Get(context.Context, *stream.GetEventReq) (*stream.GetEventResp, error)
 	Del(context.Context, *stream.DelEventReq) error
 	List(context.Context, *stream.EventListReq) (*stream.EventListResp, error)
+	Listening(context.Context, uint64) (*stream.ListeningEventsResp, error)
 }
 
 type Event struct {

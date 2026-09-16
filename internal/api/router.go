@@ -50,6 +50,7 @@ func initController(ctx context.Context, g *gin.Engine, cfg *config.Config) (fun
 		group.POST("", event.Add)
 		group.DELETE("", event.Delete)
 		group.GET("/list", event.List)
+		group.GET("/listening", event.Listening)
 		group.GET("/statistics", handler.NewEventStatistics(statistics).Get)
 	}
 	{

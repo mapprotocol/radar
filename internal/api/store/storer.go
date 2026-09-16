@@ -23,6 +23,7 @@ type Evener interface {
 	Delete(ctx context.Context, id int64) error
 	Get(ctx context.Context, c *EventCond) (*dao.Event, error)
 	List(ctx context.Context, c *EventCond) ([]*dao.Event, int64, error)
+	Listening(ctx context.Context, chainID uint64) ([]*dao.Event, error)
 }
 
 type EventCond struct {
