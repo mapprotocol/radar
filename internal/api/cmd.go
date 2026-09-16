@@ -24,11 +24,12 @@ var Command = &cli.Command{
 
 		g := gin.Default()
 		initMiddleware(g)
-		err = initController(g, cfg)
+		stopStatistics, err := initController(cli.Context, g, cfg)
 		if err != nil {
 			log.Error("init failed", "err", err)
 			return err
 		}
+		defer stopStatistics()
 
 		httpsrv := &http.Server{Addr: cfg.Listen, Handler: g}
 		if err := httpsrv.ListenAndServe(); err != nil {

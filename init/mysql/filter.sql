@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS `mos` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `tx_hash_unique` (`tx_hash`,`log_index`,`project_id`) USING BTREE,
   KEY `mos_select_index` (`chain_id`,`project_id`,`event_id`,`id`),
+  KEY `mos_event_statistics_index` (`project_id`,`tx_timestamp`,`event_id`,`chain_id`),
   KEY `block_index` (`block_number`,`project_id`,`chain_id`,`event_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 

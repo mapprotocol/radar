@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/subtle"
 	"net"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mapprotocol/filter/internal/api/config"
 	"github.com/mapprotocol/filter/internal/api/handler"
+	"github.com/mapprotocol/filter/internal/api/service"
 	"github.com/mapprotocol/filter/internal/api/store/mysql"
 	"github.com/pkg/errors"
 )
@@ -25,10 +27,14 @@ func initMiddleware(g *gin.Engine) {
 	}))
 }
 
-func initController(g *gin.Engine, cfg *config.Config) error {
+func initController(ctx context.Context, g *gin.Engine, cfg *config.Config) (func(), error) {
 	db, err := mysql.Init(cfg.Dsn)
 	if err != nil {
-		return errors.Wrap(err, "init db failed")
+		return nil, errors.Wrap(err, "init db failed")
+	}
+	statistics, err := service.NewEventStatistics(mysql.NewEventStatistics(db), cfg.EventStatisticsTimezone)
+	if err != nil {
+		return nil, err
 	}
 	v1 := g.Group("/v1", apiAuthMiddleware(cfg.APIAuthKeys, cfg.IPWhitelist))
 	{
@@ -44,6 +50,7 @@ func initController(g *gin.Engine, cfg *config.Config) error {
 		group.POST("", event.Add)
 		group.DELETE("", event.Delete)
 		group.GET("/list", event.List)
+		group.GET("/statistics", handler.NewEventStatistics(statistics).Get)
 	}
 	{
 		mos := handler.NewMos(db)
@@ -58,7 +65,7 @@ func initController(g *gin.Engine, cfg *config.Config) error {
 		group.GET("", b.Get)
 		group.GET("/scan", b.GetCurrentScan)
 	}
-	return nil
+	return statistics.Start(ctx), nil
 }
 
 func apiAuthMiddleware(authKeys []string, whitelist []string) gin.HandlerFunc {
