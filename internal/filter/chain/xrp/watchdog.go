@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/mapprotocol/filter/internal/filter/chain/progresswatch"
 	"github.com/mapprotocol/filter/pkg/utils"
 )
 
 func (c *Chain) watchdog() {
 	tmp := c.currentProgress
+	detector := progresswatch.NewDetector(tmp)
 	for {
 		select {
 		case <-c.dog:
@@ -17,18 +19,21 @@ func (c *Chain) watchdog() {
 			return
 		default:
 			time.Sleep(time.Minute)
-			if tmp != c.currentProgress {
+			switch detector.Observe(c.currentProgress, c.latest) {
+			case progresswatch.Progressed:
 				c.log.Info("watchdog progress report", "record", tmp, "curr", c.currentProgress, "latest", c.latest)
 				tmp = c.currentProgress
 				continue
-			}
-			if tmp == c.latest {
+			case progresswatch.AtLatest:
 				c.log.Info("watchdog progress report, curr = latest", "record", tmp)
 				continue
+			case progresswatch.Waiting:
+				c.log.Info("watchdog progress not change in one minute, waiting for second check", "record", tmp, "latest", c.latest)
+				continue
 			}
-			c.log.Info("watchdog work progress not change in minute, will retry conn", "record", tmp, "curr", c.currentProgress)
-			utils.Alarm(context.Background(), fmt.Sprintf("chain(%s) work progress (%d) not change in one minute", c.cfg.Name, tmp))
-			c.log.Info("watchdog work progress not change in minute, send alarm ok")
+			c.log.Info("watchdog work progress not change in two minutes, will retry conn", "record", tmp, "curr", c.currentProgress)
+			utils.Alarm(context.Background(), fmt.Sprintf("chain(%s) work progress (%d) not change in two minutes", c.cfg.Name, tmp))
+			c.log.Info("watchdog work progress not change in two minutes, send alarm ok")
 			c.stop <- struct{}{}
 			time.Sleep(time.Second)
 			c.conn.Close()
