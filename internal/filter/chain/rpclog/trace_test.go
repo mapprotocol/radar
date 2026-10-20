@@ -39,6 +39,7 @@ func TestRequestTraceSnapshot(t *testing.T) {
 		Reused:       true,
 		WasIdle:      true,
 		IdleTime:     2 * time.Second,
+		Conns:        1,
 	}
 	if got := trace.snapshot(); got != want {
 		t.Fatalf("snapshot = %#v, want %#v", got, want)

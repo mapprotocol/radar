@@ -103,6 +103,10 @@ func NewHTTPClient(timeout time.Duration, base http.RoundTripper) *http.Client {
 }
 
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req, err := replayable(req)
+	if err != nil {
+		return nil, err
+	}
 	started := t.now()
 	trace := newRequestTrace(t.now)
 	resp, err := t.base.RoundTrip(trace.withRequest(req))
@@ -126,6 +130,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		"reused", timings.Reused,
 		"was_idle", timings.WasIdle,
 		"idle_time", timings.IdleTime,
+		"conns", timings.Conns,
 		"proto", proto,
 	}
 	if err != nil {
