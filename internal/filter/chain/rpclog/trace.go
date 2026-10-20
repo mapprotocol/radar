@@ -17,6 +17,9 @@ type traceTimings struct {
 	Reused       bool
 	WasIdle      bool
 	IdleTime     time.Duration
+	// Conns counts the connections the request used; 2 means net/http retried
+	// it on a new connection after the reused one was reset.
+	Conns int
 }
 
 type requestTrace struct {
@@ -49,6 +52,7 @@ func (t *requestTrace) clientTrace() *httptrace.ClientTrace {
 			defer t.mu.Unlock()
 			t.timings.ConnWait += elapsed(t.connStart, t.now())
 			t.connStart = time.Time{}
+			t.timings.Conns++
 			t.timings.Reused = info.Reused
 			t.timings.WasIdle = info.WasIdle
 			t.timings.IdleTime = info.IdleTime
