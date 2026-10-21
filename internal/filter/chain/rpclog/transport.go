@@ -109,7 +109,13 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	started := t.now()
 	trace := newRequestTrace(t.now)
-	resp, err := t.base.RoundTrip(trace.withRequest(req))
+	traced := trace.withRequest(req)
+	resp, err := t.base.RoundTrip(traced)
+	if retry, ok := retryAfterReset(traced, err); ok {
+		t.logger.Info("Chain RPC request reset, retrying", "rpc_method", rpcMethods(req),
+			"endpoint", sanitizeEndpoint(req.URL), "err", err)
+		resp, err = t.base.RoundTrip(retry)
+	}
 	duration := t.now().Sub(started)
 	timings := trace.snapshot()
 	proto := unknown
