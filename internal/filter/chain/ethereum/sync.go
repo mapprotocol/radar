@@ -217,11 +217,25 @@ func (c *Chain) mosHandler(latestBlock, endBlock *big.Int) error {
 			return err
 		}
 	}
-	if c.isBackUp {
-		return nil
-	}
+	c.saveScanProgress(endBlock.Uint64(), time.Now())
 
 	return nil
+}
+
+// scanSaveInterval 限制 scan_block 的写库频率：追块时批次一个接一个，不节流会每秒写几十次
+const scanSaveInterval = 10 * time.Second
+
+// saveScanProgress 记录当前扫描进度；多实例部署时只有不带 --back 的主实例写，避免多个进度互相覆盖
+func (c *Chain) saveScanProgress(scan uint64, now time.Time) {
+	if c.isBackUp || now.Sub(c.lastScanSave) < scanSaveInterval {
+		return
+	}
+	c.lastScanSave = now
+	for _, s := range c.storages {
+		if err := s.ScanBlockNumber(c.cfg.Id, scan); err != nil {
+			c.log.Error("Save scan height failed", "storage", s.Type(), "blockNumber", scan, "err", err)
+		}
+	}
 }
 
 func (c *Chain) insert(inserts []*eleStruct) error {

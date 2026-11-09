@@ -89,11 +89,32 @@ func (m *Mysql) LatestBlockNumber(chainId string, latest uint64) error {
 		return err
 	}
 	m.chainMapping.Set(key, blk.Id)
-	err = m.db.Model(&dao.Block{}).Where("id = ?", id).Update("number", strconv.FormatUint(latest, 10)).Error
+	err = m.db.Model(&dao.Block{}).Where("id = ?", blk.Id).Update("number", strconv.FormatUint(latest, 10)).Error
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (m *Mysql) ScanBlockNumber(chainId string, scan uint64) error {
+	key := "scan_" + chainId
+	id, ok := m.chainMapping.Get(key)
+	if ok {
+		return m.db.Model(&dao.ScanBlock{}).Where("id = ?", id).Update("number", strconv.FormatUint(scan, 10)).Error
+	}
+	blk := &dao.ScanBlock{}
+	err := m.db.Model(&dao.ScanBlock{}).Where("chain_id = ?", chainId).First(blk).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err = m.db.Create(&dao.ScanBlock{
+				ChainId: chainId,
+				Number:  strconv.FormatUint(scan, 10),
+			}).Error
+		}
+		return err
+	}
+	m.chainMapping.Set(key, blk.Id)
+	return m.db.Model(&dao.ScanBlock{}).Where("id = ?", blk.Id).Update("number", strconv.FormatUint(scan, 10)).Error
 }
 
 func (m *Mysql) GetEvent(id int64) ([]*dao.Event, error) {

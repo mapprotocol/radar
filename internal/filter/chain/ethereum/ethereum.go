@@ -2,6 +2,7 @@ package ethereum
 
 import (
 	"math/big"
+	"time"
 
 	ethkeystore "github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/log"
@@ -24,6 +25,7 @@ type Chain struct {
 	events                           []*dao.Event
 	eventId, currentProgress, latest int64
 	isBackUp                         bool
+	lastScanSave                     time.Time
 	state                            *observability.ChainState
 }
 
