@@ -92,6 +92,8 @@ func (c *Chain) sync() error {
 			if err != nil {
 				c.log.Error("Failed to write latest block to blockStore", "block", currentBlock, "err", err)
 			}
+			// 放在这里而不是 mosHandler 里：空批次（如 Map 链大多数块没有日志）mosHandler 会提前返回
+			c.saveScanProgress(endBlock.Uint64(), time.Now())
 
 			c.currentProgress = endBlock.Int64()
 			c.latest = int64(latestBlock)
@@ -217,8 +219,6 @@ func (c *Chain) mosHandler(latestBlock, endBlock *big.Int) error {
 			return err
 		}
 	}
-	c.saveScanProgress(endBlock.Uint64(), time.Now())
-
 	return nil
 }
 
