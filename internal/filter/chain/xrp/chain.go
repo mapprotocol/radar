@@ -1,6 +1,8 @@
 package xrp
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/mapprotocol/filter/internal/filter/config"
 	"github.com/mapprotocol/filter/internal/observability"
@@ -19,9 +21,12 @@ type Chain struct {
 	conn                             Conner
 	eventId, currentProgress, latest int64
 	state                            *observability.ChainState
+	isBackUp                         bool
+	lastLatestSave                   time.Time
+	savedLatest                      uint64
 }
 
-func New(cfg config.RawChainConfig, storages []storage.Saver) (*Chain, error) {
+func New(cfg config.RawChainConfig, storages []storage.Saver, isBackUp bool) (*Chain, error) {
 	eCfg, err := parseConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -47,6 +52,7 @@ func New(cfg config.RawChainConfig, storages []storage.Saver) (*Chain, error) {
 		bs:        bs,
 		conn:      conn,
 		storages:  storages,
+		isBackUp:  isBackUp,
 	}, nil
 }
 
