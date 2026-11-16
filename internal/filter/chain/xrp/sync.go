@@ -375,7 +375,7 @@ func (c *Chain) getMatch() error {
 }
 
 // latestSaveInterval 限制链上最新高度的写库频率：不节流时每个实例每条链每出一个块就写一次（BSC 不到 1 秒一块）
-const latestSaveInterval = 10 * time.Second
+const latestSaveInterval = 3 * time.Second
 
 // saveLatestBlock 记录链上最新高度；和 scan 进度一样只由不带 --back 的主实例写，高度没变不写
 func (c *Chain) saveLatestBlock(latest uint64, now time.Time) {

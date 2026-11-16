@@ -214,7 +214,7 @@ func (c *Chain) mosHandler(latestBlock, endBlock *big.Int) error {
 }
 
 // scanSaveInterval 限制 scan_block 的写库频率：追块时批次一个接一个，不节流会每秒写几十次
-const scanSaveInterval = 10 * time.Second
+const scanSaveInterval = 3 * time.Second
 
 // saveScanProgress 记录当前扫描进度；多实例部署时只有不带 --back 的主实例写，避免多个进度互相覆盖
 func (c *Chain) saveScanProgress(scan uint64, now time.Time) {
@@ -230,7 +230,7 @@ func (c *Chain) saveScanProgress(scan uint64, now time.Time) {
 }
 
 // latestSaveInterval 限制链上最新高度的写库频率：不节流时每个实例每条链每出一个块就写一次（BSC 不到 1 秒一块）
-const latestSaveInterval = 10 * time.Second
+const latestSaveInterval = 3 * time.Second
 
 // saveLatestBlock 记录链上最新高度；和 scan 进度一样只由不带 --back 的主实例写，高度没变不写
 func (c *Chain) saveLatestBlock(latest uint64, now time.Time) {
