@@ -25,7 +25,8 @@ type Chain struct {
 	events                           []*dao.Event
 	eventId, currentProgress, latest int64
 	isBackUp                         bool
-	lastScanSave                     time.Time
+	lastScanSave, lastLatestSave     time.Time
+	savedLatest                      uint64
 	state                            *observability.ChainState
 }
 

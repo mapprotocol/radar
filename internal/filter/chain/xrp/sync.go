@@ -31,7 +31,6 @@ func (c *Chain) sync() error {
 	if local.Cmp(currentBlock) == 1 {
 		currentBlock = local
 	}
-	savedBN := uint64(0)
 
 	for {
 		select {
@@ -50,15 +49,7 @@ func (c *Chain) sync() error {
 			}
 			c.state.SetLatestBlock(int64(latestBlock))
 
-			if latestBlock != savedBN {
-				savedBN = latestBlock
-				for _, s := range c.storages {
-					err = s.LatestBlockNumber(c.cfg.Id, latestBlock)
-					if err != nil {
-						c.log.Error("Save latest height failed", "storage", s.Type(), "err", err)
-					}
-				}
-			}
+			c.saveLatestBlock(latestBlock, time.Now())
 
 			if currentBlock.Uint64() == 0 || currentBlock.Uint64() > latestBlock {
 				currentBlock = big.NewInt(0).SetUint64(latestBlock)
@@ -381,4 +372,21 @@ func (c *Chain) getMatch() error {
 		}
 	}
 	return nil
+}
+
+// latestSaveInterval 限制链上最新高度的写库频率：不节流时每个实例每条链每出一个块就写一次（BSC 不到 1 秒一块）
+const latestSaveInterval = 10 * time.Second
+
+// saveLatestBlock 记录链上最新高度；和 scan 进度一样只由不带 --back 的主实例写，高度没变不写
+func (c *Chain) saveLatestBlock(latest uint64, now time.Time) {
+	if c.isBackUp || latest == c.savedLatest || now.Sub(c.lastLatestSave) < latestSaveInterval {
+		return
+	}
+	c.savedLatest = latest
+	c.lastLatestSave = now
+	for _, s := range c.storages {
+		if err := s.LatestBlockNumber(c.cfg.Id, latest); err != nil {
+			c.log.Error("Save latest height failed", "storage", s.Type(), "err", err)
+		}
+	}
 }
