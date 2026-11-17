@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/mapprotocol/filter/internal/pkg/constant"
 )
@@ -41,12 +42,51 @@ type opt struct {
 	BlockConfirmations string `json:"blockConfirmations,omitempty"`
 	Range              string `json:"range,omitempty"`
 	Butter             string `json:"butter,omitempty"`
+
+	// solana: mcs may be a list and startBlock may map program id -> signature
+	StartBlocks           map[string]string `json:"-"`
+	ButterApiKey          string            `json:"-"`
+	ButterEntrance        string            `json:"butterEntrance,omitempty"`
+	SupportedBridgeMints  []string          `json:"supportedBridgeMints,omitempty"`
+	NativeTokenOutAddress string            `json:"nativeTokenOutAddress,omitempty"`
+}
+
+func (o *opt) UnmarshalJSON(data []byte) error {
+	type plain opt
+	var raw struct {
+		plain
+		Mcs        json.RawMessage `json:"mcs,omitempty"`
+		StartBlock json.RawMessage `json:"startBlock,omitempty"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*o = opt(raw.plain)
+
+	if len(raw.Mcs) > 0 && string(raw.Mcs) != "null" {
+		var list []string
+		if err := json.Unmarshal(raw.Mcs, &list); err == nil {
+			o.Mcs = strings.Join(list, ",")
+		} else if err = json.Unmarshal(raw.Mcs, &o.Mcs); err != nil {
+			return fmt.Errorf("opts.mcs must be a string or a list of strings: %w", err)
+		}
+	}
+	if len(raw.StartBlock) > 0 && string(raw.StartBlock) != "null" {
+		var blocks map[string]string
+		if err := json.Unmarshal(raw.StartBlock, &blocks); err == nil {
+			o.StartBlocks = blocks
+		} else if err = json.Unmarshal(raw.StartBlock, &o.StartBlock); err != nil {
+			return fmt.Errorf("opts.startBlock must be a string or an object: %w", err)
+		}
+	}
+	return nil
 }
 
 type Construction struct {
 	MonitorUrl                  string `json:"monitor_url,omitempty"`
 	Env                         string `json:"env,omitempty"`
 	Butter                      string `json:"butter,omitempty"`
+	ButterApiKey                string `json:"butter_api_key,omitempty"`
 	ObservabilityAddr           string `json:"observability_addr,omitempty"`
 	OpsHubObservabilityURL      string `json:"ops_hub_observability_url,omitempty"`
 	OpsHubObservabilityAPIKey   string `json:"ops_hub_observability_api_key,omitempty"`
