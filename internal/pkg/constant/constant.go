@@ -11,6 +11,7 @@ const (
 	Near     = "near"
 	Ton      = "ton"
 	Xrp      = "xrp"
+	Solana   = "solana"
 	Ethereum = "ethereum"
 )
 
