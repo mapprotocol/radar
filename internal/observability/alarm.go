@@ -49,6 +49,7 @@ var DefaultBlockTimes = map[string]float64{
 	"ton":       5,
 	"xrp":       4,
 	"near":      1,
+	"solana":    0.4,
 	"map":       5,
 	"mapchain":  5,
 	"robinhood": 0.1,

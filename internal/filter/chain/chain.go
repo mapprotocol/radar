@@ -3,6 +3,7 @@ package chain
 import (
 	"github.com/mapprotocol/filter/internal/filter/chain/ethereum"
 	"github.com/mapprotocol/filter/internal/filter/chain/near"
+	"github.com/mapprotocol/filter/internal/filter/chain/solana"
 	"github.com/mapprotocol/filter/internal/filter/chain/ton"
 	"github.com/mapprotocol/filter/internal/filter/chain/xrp"
 	"github.com/mapprotocol/filter/internal/filter/config"
@@ -34,6 +35,10 @@ func Init(cfg *config.Config, storages []storage.Saver, latest, isBackUp bool) (
 		case constant.Xrp:
 			ccfg.Opts.Butter = cfg.Other.Butter
 			c, err = xrp.New(ccfg, storages, isBackUp)
+		case constant.Solana:
+			ccfg.Opts.Butter = cfg.Other.Butter
+			ccfg.Opts.ButterApiKey = cfg.Other.ButterApiKey
+			c, err = solana.New(ccfg, storages, isBackUp)
 		default:
 			c, err = ethereum.New(ccfg, storages, latest, isBackUp)
 		}
