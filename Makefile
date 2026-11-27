@@ -11,7 +11,7 @@ CENT_TO?=0x1234567890
 CENT_TOKEN_ID?=0x5
 CENT_METADATA?=0x0
 
-.PHONY: help build get install
+.PHONY: help build get install swagger
 all: help
 
 help: Makefile
@@ -32,3 +32,7 @@ build:
 install:
 	@echo "  >  \033[32mInstalling filter...\033[0m "
 	cd cmd && go install $(LDFLAGS)
+
+swagger:
+	@echo "  >  \033[32mGenerating swagger docs...\033[0m "
+	go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -d ./internal/api -g router.go -o internal/api/swagger --parseInternal --outputTypes go,json,yaml

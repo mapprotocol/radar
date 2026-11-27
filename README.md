@@ -1,6 +1,20 @@
 # radar
 MAP Protocol Radar is a service to filter all specified events on EVM and non-EVM chains.
 
+## API documentation
+
+The `api` command serves Swagger UI at `/swagger/index.html` (raw spec at
+`/swagger/doc.json`). The docs page itself needs no API key; to call `/v1`
+endpoints from the page, click **Authorize** and fill in `X-API-Key`.
+
+The spec is generated from the annotations on `internal/api/handler` and the
+general info in `internal/api/router.go`. After changing an endpoint or its
+annotations, regenerate and commit `internal/api/swagger`:
+
+```bash
+make swagger
+```
+
 ## Container image
 
 Successful pushes to `main` publish a multi-platform image to GHCR:

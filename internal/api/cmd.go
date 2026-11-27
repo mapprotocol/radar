@@ -24,6 +24,7 @@ var Command = &cli.Command{
 
 		g := gin.Default()
 		initMiddleware(g)
+		initSwagger(g)
 		stopStatistics, err := initController(cli.Context, g, cfg)
 		if err != nil {
 			log.Error("init failed", "err", err)
