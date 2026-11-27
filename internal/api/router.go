@@ -14,8 +14,27 @@ import (
 	"github.com/mapprotocol/filter/internal/api/handler"
 	"github.com/mapprotocol/filter/internal/api/service"
 	"github.com/mapprotocol/filter/internal/api/store/mysql"
+	_ "github.com/mapprotocol/filter/internal/api/swagger"
 	"github.com/pkg/errors"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
+
+// 下面是 swag 生成文档用的全局信息；改了接口注释后执行 make swagger 重新生成 internal/api/swagger
+
+//	@title						MAP Protocol Radar API
+//	@version					1.0
+//	@description				跨链事件过滤服务 radar 的 HTTP 接口。
+//	@description				/v1 下的接口需要认证：请求来源 IP 在 ip_whitelist 中，或带 X-API-Key / Authorization: Bearer 头。
+//	@description				业务失败也返回 HTTP 200，以响应体里的 code 为准（200 成功）。
+//	@BasePath					/
+//	@securityDefinitions.apikey	ApiKeyAuth
+//	@in							header
+//	@name						X-API-Key
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				填 "Bearer <api-key>"
 
 func initMiddleware(g *gin.Engine) {
 	g.Use(cors.New(cors.Config{
@@ -25,6 +44,11 @@ func initMiddleware(g *gin.Engine) {
 		AllowCredentials: true,
 		MaxAge:           2 * time.Minute,
 	}))
+}
+
+// initSwagger 挂文档页，不走 /v1 认证：浏览器打开 /swagger/index.html，调用接口时在 Authorize 里填 API Key
+func initSwagger(g *gin.Engine) {
+	g.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 }
 
 func initController(ctx context.Context, g *gin.Engine, cfg *config.Config) (func(), error) {
